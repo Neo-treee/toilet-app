@@ -530,14 +530,68 @@
       }
     }
 
+    // --------------------------------------------------
+    // 現在地表示 ＆ 現在地に戻るボタン（🎯）
+    // --------------------------------------------------
+    var currentLat = null;
+    var currentLng = null;
+    var currentMarker = null;
+
+    function updateCurrentLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+          currentLat = pos.coords.latitude;
+          currentLng = pos.coords.longitude;
+
+          if (currentMarker) {
+            currentMarker.setLatLng([currentLat, currentLng]);
+          } else {
+            currentMarker = L.circleMarker([currentLat, currentLng], {
+              radius: 8, fillColor: "#007bff", color: "#fff", weight: 2, fillOpacity: 0.8
+            }).addTo(map).bindPopup("現在地");
+          }
+        }, function(err) {
+          alert("現在地の取得に失敗しました。位置情報サービスをオンにしてください。");
+        });
+      }
+    }
+
+    // 初回起動時の現在地移動
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(function(pos) {
-        map.setView([pos.coords.latitude, pos.coords.longitude], 15);
-        L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
-          radius: 8, fillColor: "#007bff", color: "#fff", weight: 2, fillOpacity: 0.8
-        }).addTo(map).bindPopup("現在地");
+        currentLat = pos.coords.latitude;
+        currentLng = pos.coords.longitude;
+        map.setView([currentLat, currentLng], 15);
+        updateCurrentLocation();
       });
     }
+
+    // 地図上に「現在地に戻る」ボタンを追加
+    var locateControl = L.control({ position: 'topright' });
+    locateControl.onAdd = function(map) {
+      var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      div.style.backgroundColor = 'white';
+      div.style.width = '34px';
+      div.style.height = '34px';
+      div.style.lineHeight = '34px';
+      div.style.textAlign = 'center';
+      div.style.cursor = 'pointer';
+      div.style.fontSize = '18px';
+      div.title = '現在地に戻る';
+      div.innerHTML = '🎯';
+
+      div.onclick = function(e) {
+        L.DomEvent.stopPropagation(e);
+        if (currentLat && currentLng) {
+          map.flyTo([currentLat, currentLng], 16);
+          updateCurrentLocation();
+        } else {
+          updateCurrentLocation();
+        }
+      };
+      return div;
+    };
+    locateControl.addTo(map);
 
     map.on('click', function(e) {
       if (tempMarker) { map.removeLayer(tempMarker); }
