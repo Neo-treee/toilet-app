@@ -3,22 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>トイレマップ Pro | 近くの多目的・24時間トイレ検索</title>
-
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9TQVXQ357D"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-9TQVXQ357D');
-</script>
   
-  <!-- SEO & OGP Settings -->
-  <meta name="description" content="現在地や駅名から近くのトイレ、多目的トイレ、オムツ台完備のトイレをすぐに検索・共有できるリアルタイムトイレマップアプリです。">
+  <!-- タイトル & SEO & OGP Settings -->
+  <title>トイレマップ ー みんなで世界のトイレを見つけて投稿しよう</title>
+  <meta name="description" content="世界中の公衆トイレや利用可能なトイレを簡単に検索・投稿できるシェアリングアプリです。近くのトイレを今すぐ見つけよう！">
   <meta name="keywords" content="トイレ,トイレマップ,多目的トイレ,オムツ台,24時間トイレ,現在地検索">
   <meta name="theme-color" content="#007bff">
+
+  <!-- OGP（SNS共有用設定） -->
+  <meta property="og:title" content="トイレマップ ー みんなで世界のトイレを見つけて投稿しよう">
+  <meta property="og:description" content="世界中の公衆トイレや利用可能なトイレを簡単に検索・投稿できるシェアリングアプリです。近くのトイレを今すぐ見つけよう！">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://toilet-app-black.vercel.app">
+
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9TQVXQ357D"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-9TQVXQ357D');
+  </script>
   
   <!-- PWA Settings -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -83,7 +88,7 @@
 
     #bottom-nav {
       height: 55px; background: white; border-top: 1px solid #ccc;
-      display: flex; justify-content: space-around; align-items: center; z-index: 1001;
+      display: flex; justify-space-around: align-items: center; z-index: 1001;
     }
     .nav-btn { flex: 1; text-align: center; padding: 8px; color: #888; font-size: 13px; cursor: pointer; }
     .nav-btn.active { color: #007bff; font-weight: bold; }
@@ -212,7 +217,6 @@
   <!-- 固定バナー広告枠（Google AdSense用） -->
   <div class="ad-container-banner">
     <div>スポンサー広告</div>
-    <!-- Google AdSenseコード設置エリア -->
     <div style="font-size: 11px; color: #999;">[ここにGoogle AdSenseの広告が表示されます]</div>
   </div>
 
@@ -303,9 +307,7 @@
   </div>
 
   <script>
-    // --------------------------------------------------
-    // 1. Firebaseの設定 & Storage 初期化
-    // --------------------------------------------------
+    // Firebaseの設定
     const firebaseConfig = {
       apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
       authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
@@ -347,9 +349,7 @@
       });
     }
 
-    // --------------------------------------------------
-    // 2. 駅名・住所検索機能（OpenStreetMap Geocoding API）
-    // --------------------------------------------------
+    // 駅名・住所検索機能
     async function searchLocation() {
       const query = document.getElementById('input-search-location').value;
       if (!query) return;
@@ -376,9 +376,7 @@
       }
     }
 
-    // --------------------------------------------------
-    // 3. 写真のクライアント自動圧縮処理（Canvas利用）
-    // --------------------------------------------------
+    // 写真の自動圧縮処理
     function compressImage(file, maxWidth = 1024, quality = 0.75) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -411,9 +409,7 @@
       });
     }
 
-    // --------------------------------------------------
-    // 4. リアルタイムデータ同期
-    // --------------------------------------------------
+    // リアルタイムデータ同期
     db.collection('toiletSpots').onSnapshot(function(snapshot) {
       allSpots = [];
       snapshot.forEach(function(doc) {
@@ -493,9 +489,7 @@
       activeMarkers[spot.docId] = marker;
     }
 
-    // --------------------------------------------------
-    // 5. 写真アップロード（自動圧縮付き） & データ保存
-    // --------------------------------------------------
+    // 写真アップロード & データ保存
     async function saveData() {
       var fileInput = document.getElementById('file-photo');
       var rawFile = fileInput.files[0];
@@ -511,7 +505,6 @@
       try {
         let imageUrl = '';
         if (rawFile) {
-          // 画像を自動圧縮処理
           const compressedBlob = await compressImage(rawFile, 1024, 0.75);
           const storageRef = storage.ref(`toilet_photos/${Date.now()}_compressed.jpg`);
           const snapshot = await storageRef.put(compressedBlob);
@@ -663,7 +656,6 @@
         var tagsHtml = renderFeatureTags(spot.features);
         var imgHtml = spot.imageUrl ? `<img src="${spot.imageUrl}" class="spot-img" onclick="window.open('${spot.imageUrl}')">` : '';
 
-        // アフィリエイト広告枠（3件目に表示）
         if (index === 2) {
           html += `
             <div class="ad-container-card">
@@ -706,9 +698,7 @@
       }
     }
 
-    // --------------------------------------------------
-    // 現在地表示 ＆ 現在地に戻るボタン（🎯）
-    // --------------------------------------------------
+    // 現在地表示 ＆ 現在地ボタン
     var currentLat = null;
     var currentLng = null;
     var currentMarker = null;
@@ -800,7 +790,7 @@
       location.reload();
     }
 
-    // PWA Service Worker 自動登録
+    // PWA Service Worker 登録
     if ('serviceWorker' in navigator) {
       const swCode = `
         self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
