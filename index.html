@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>トイレマップ Pro</title>
+
+  <!-- PWA Settings -->
+  <meta name="theme-color" content="#007bff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="トイレマップ">
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Firebase SDK (v9 compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <style>
+    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f4; display: flex; flex-direction: column; height: 100vh; user-select: none; }
+    
+    #header-settings {
+      background: #333; color: white; padding: 10px 15px; font-size: 13px;
+      display: flex; justify-content: space-between; align-items: center; z-index: 1001;
+    }
+    .settings-btn { background: #555; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+
+    /* フィルターバー */
+    #filter-bar {
+      background: #fff; padding: 8px 12px; border-bottom: 1px solid #ddd;
+      display: flex; gap: 8px; overflow-x: auto; z-index: 1000; white-space: nowrap;
+    }
+    .filter-chip {
+      background: #f0f0f0; border: 1px solid #ccc; padding: 4px 10px;
+      border-radius: 16px; font-size: 12px; cursor: pointer;
+    }
+    .filter-chip.active { background: #007bff; color: white; border-color: #007bff; font-weight: bold; }
+
+    #content-area { flex: 1; position: relative; overflow: hidden; }
+    #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+    
+    #list-view { 
+      height: 100%; width: 100%; position: absolute; top: 0; left: 0; 
+      background: #f4f4f4; z-index: 2; display: none; overflow-y: auto; padding-bottom: 70px;
+    }
+
+    /* 広告枠 */
+    .ad-container-banner {
+      background: #e9ecef; border-top: 1px solid #ccc; text-align: center;
+      padding: 5px; font-size: 10px; color: #777; z-index: 1001; min-height: 50px;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .ad-container-card {
+      background: #fff3cd; border: 1px dashed #ffebaa; margin: 10px 15px; padding: 15px;
+      border-radius: 8px; text-align: center; color: #856404; font-size: 12px;
+    }
+    
+    #bottom-nav {
+      height: 55px; background: white; border-top: 1px solid #ccc;
+      display: flex; justify-content: space-around; align-items: center; z-index: 1001;
+    }
+    .nav-btn { flex: 1; text-align: center; padding: 8px; color: #888; font-size: 13px; cursor: pointer; }
+    .nav-btn.active { color: #007bff; font-weight: bold; }
+
+    .controls-area {
+      background: white; padding: 12px 15px; border-bottom: 1px solid #ddd;
+      position: sticky; top: 0; z-index: 10; display: flex; gap: 10px;
+    }
+    .search-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .sort-select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: white; }
+
+    .list-item {
+      background: white; margin: 10px 15px; padding: 15px;
+      border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .list-stars { color: #ffca08; font-size: 16px; }
+    .list-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+    .badge-group { background: #e6f4ea; color: #137333; }
+    .badge-public { background: #fce8e6; color: #c5221f; }
+    .tag-container { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+    .feature-tag { font-size: 11px; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; }
+    .spot-img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; margin: 8px 0; cursor: pointer; }
+
+    .list-actions { display: flex; gap: 10px; margin-top: 10px; }
+    .btn-map { flex: 1; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+    .btn-delete { flex: 1; padding: 8px; background: #ff4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+
+    .empty-state { text-align: center; padding: 30px; color: #888; }
+
+    #input-form, #settings-modal {
+      position: fixed; bottom: -100%; left: 0; width: 100%; background: white;
+      z-index: 1002; border-top-left-radius: 20px; border-top-right-radius: 20px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.2); transition: bottom 0.3s ease-out;
+      padding: 20px; box-sizing: border-box; max-height: 85%; overflow-y: auto;
+    }
+    #input-form.open, #settings-modal.open { bottom: 0; }
+    .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .form-title { font-weight: bold; font-size: 18px; }
+    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #888; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #333; }
+    
+    .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .checkbox-item { font-size: 13px; display: flex; align-items: center; gap: 5px; font-weight: normal; }
+
+    input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+    textarea { height: 60px; resize: none; }
+    .star-rating { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 5px; }
+    .star-rating input { display: none; }
+    .star-rating label { font-size: 30px; color: #ccc; cursor: pointer; margin: 0; }
+    .star-rating input:checked ~ label { color: #ffca08; }
+    .privacy-group { display: flex; gap: 15px; margin-top: 5px; }
+    .privacy-group label { font-weight: normal; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .save-btn { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    
+    #loading {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(255,255,255,0.85); z-index: 2000;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; color: #333;
+    }
+
+    .custom-pin {
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3); text-align: center; line-height: 28px; font-size: 16px;
+    }
+    .pin-group { background: #28a745; color: white; }
+    .pin-public { background: #ff9800; color: white; }
+  </style>
+</head>
+<body>
+
+  <!-- ヘッダー設定バー -->
+  <div id="header-settings">
+    <div>
+      👤 <span id="disp-nickname">ゲスト</span> 
+      | 👥 グループ: <b id="disp-group">未設定</b>
+    </div>
+    <button class="settings-btn" onclick="openSettings()">設定</button>
+  </div>
+
+  <!-- 絞り込みフィルターバー -->
+  <div id="filter-bar">
+    <div class="filter-chip" data-feature="accessible" onclick="toggleFilter(this)">♿ 多目的</div>
+    <div class="filter-chip" data-feature="baby" onclick="toggleFilter(this)">👶 オムツ台</div>
+    <div class="filter-chip" data-feature="washlet" onclick="toggleFilter(this)">🚽 温水洗浄便座</div>
+    <div class="filter-chip" data-feature="open24h" onclick="toggleFilter(this)">⏰ 24時間</div>
+    <div class="filter-chip" data-feature="facility" onclick="toggleFilter(this)">🏪 施設/コンビニ</div>
+  </div>
+  
+  <div id="loading">
+    <div id="loading-text">接続中...</div>
+  </div>
+
+  <div id="content-area">
+    <div id="map"></div>
+    
+    <div id="list-view">
+      <div class="controls-area">
+        <input type="text" id="search-box" class="search-input" placeholder="検索..." onkeyup="renderList()">
+        <select id="sort-box" class="sort-select" onchange="renderList()">
+          <option value="newest">新着順</option>
+          <option value="highest">評価順</option>
+        </select>
+      </div>
+      <div id="list-container"></div>
+    </div>
+  </div>
+
+  <!-- 固定バナー広告枠（マネタイズ用） -->
+  <div class="ad-container-banner">
+    <div>スポンサー広告</div>
+    <div style="font-size: 11px; color: #999;">[ここにGoogle AdSense等の広告が表示されます]</div>
+  </div>
+
+  <div id="bottom-nav">
+    <div class="nav-btn active" id="nav-map" onclick="switchTab('map')">🗺️ マップ</div>
+    <div class="nav-btn" id="nav-list" onclick="switchTab('list')">📋 みんなの記録</div>
+  </div>
+
+  <!-- 投稿フォーム -->
+  <div id="input-form">
+    <div class="form-header">
+      <span class="form-title">トイレを記録</span>
+      <button class="close-btn" onclick="closeForm()">×</button>
+    </div>
+    <div class="form-group">
+      <label>公開範囲</label>
+      <div class="privacy-group">
+        <label><input type="radio" name="privacy" value="group" checked> 👥 グループのみ</label>
+        <label><input type="radio" name="privacy" value="public"> 🌐 全体公開</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>写真の添付（任意）</label>
+      <input type="file" id="file-photo" accept="image/*" style="font-size:12px;">
+    </div>
+    <div class="form-group">
+      <label>設備情報（複数選択可）</label>
+      <div class="checkbox-grid">
+        <label class="checkbox-item"><input type="checkbox" id="chk-accessible"> ♿ 多目的トイレ</label>
+        <label class="checkbox-item"><input type="checkbox" id="chk-baby"> 👶 オムツ交換台</label>
+        <label class="checkbox-item"><input type="checkbox" id="chk-washlet"> 🚽 温水洗浄便座</label>
+        <label class="checkbox-item"><input type="checkbox" id="chk-open24h"> ⏰ 24時間利用可</label>
+        <label class="checkbox-item"><input type="checkbox" id="chk-facility"> 🏪 コンビニ/施設内</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>評価（星1〜5）</label>
+      <div class="star-rating">
+        <input type="radio" id="star5" name="rating" value="5"><label for="star5">★</label>
+        <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
+        <input type="radio" id="star3" name="rating" value="3"><label for="star3">★</label>
+        <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
+        <input type="radio" id="star1" name="rating" value="1"><label for="star1">★</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>コメント</label>
+      <textarea id="toilet-comment" placeholder="例：清潔、トイレットペーパー完備"></textarea>
+    </div>
+    <button class="save-btn" onclick="saveData()">オンラインに保存</button>
+  </div>
+
+  <!-- ユーザー設定モーダル -->
+  <div id="settings-modal">
+    <div class="form-header">
+      <span class="form-title">ユーザー＆グループ設定</span>
+      <button class="close-btn" onclick="closeSettings()">×</button>
+    </div>
+    <div class="form-group">
+      <label>ニックネーム</label>
+      <input type="text" id="input-nickname" placeholder="例：たろう">
+    </div>
+    <div class="form-group">
+      <label>グループID（合言葉）</label>
+      <input type="text" id="input-group" placeholder="例：tanaka-family">
+      <small style="color:#666;">同じIDを入力した友達同士で記録を共有できます。</small>
+    </div>
+    <button class="save-btn" onclick="saveSettings()">設定を保存</button>
+  </div>
+
+  <script>
+    // --------------------------------------------------
+    // 1. Firebaseの設定 & Storage 初期化
+    // --------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
+      authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
+      projectId: "my-toilet-app-3c2c3",
+      storageBucket: "my-toilet-app-3c2c3.firebasestorage.app",
+      messagingSenderId: "322835199622",
+      appId: "1:322835199622:web:7e43f787b97a003d408307"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    let myNickname = localStorage.getItem('user_nickname') || 'ゲスト';
+    let myGroupId = localStorage.getItem('user_group') || 'free';
+    let activeFilters = [];
+
+    function updateProfileUI() {
+      document.getElementById('disp-nickname').innerText = myNickname;
+      document.getElementById('disp-group').innerText = myGroupId;
+    }
+    updateProfileUI();
+
+    var map = L.map('map').setView([35.6812, 139.7671], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+
+    var tempMarker = null;
+    var allSpots = [];
+    var activeMarkers = {};
+
+    function createIcon(isGroup) {
+      var className = isGroup ? 'custom-pin pin-group' : 'custom-pin pin-public';
+      return L.divIcon({
+        className: className,
+        html: '🚽',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        popupAnchor: [0, -15]
+      });
+    }
+
+    // --------------------------------------------------
+    // 2. リアルタイムデータ同期
+    // --------------------------------------------------
+    db.collection('toiletSpots').onSnapshot(function(snapshot) {
+      allSpots = [];
+      snapshot.forEach(function(doc) {
+        var spot = doc.data();
+        spot.docId = doc.id;
+        if (spot.privacy === 'public' || spot.groupId === myGroupId) {
+          allSpots.push(spot);
+        }
+      });
+      refreshMapAndList();
+      document.getElementById('loading').style.display = 'none';
+    }, function(error) {
+      document.getElementById('loading').style.display = 'none';
+      alert('Firebase接続エラー: ' + error.message);
+    });
+
+    function refreshMapAndList() {
+      Object.keys(activeMarkers).forEach(function(key) { map.removeLayer(activeMarkers[key]); });
+      activeMarkers = {};
+
+      allSpots.forEach(function(spot) {
+        var matchesFilter = activeFilters.every(function(f) {
+          return spot.features && spot.features[f] === true;
+        });
+        if (matchesFilter) { addMarkerToMap(spot); }
+      });
+
+      if (document.getElementById('list-view').style.display === 'block') { renderList(); }
+    }
+
+    function toggleFilter(el) {
+      var feature = el.getAttribute('data-feature');
+      if (el.classList.contains('active')) {
+        el.classList.remove('active');
+        activeFilters = activeFilters.filter(f => f !== feature);
+      } else {
+        el.classList.add('active');
+        activeFilters.push(feature);
+      }
+      refreshMapAndList();
+    }
+
+    function renderFeatureTags(features) {
+      if (!features) return '';
+      var html = '<div class="tag-container">';
+      if (features.accessible) html += '<span class="feature-tag">♿ 多目的</span>';
+      if (features.baby) html += '<span class="feature-tag">👶 オムツ台</span>';
+      if (features.washlet) html += '<span class="feature-tag">🚽 洗浄便座</span>';
+      if (features.open24h) html += '<span class="feature-tag">⏰ 24時間</span>';
+      if (features.facility) html += '<span class="feature-tag">🏪 施設内</span>';
+      html += '</div>';
+      return html;
+    }
+
+    function addMarkerToMap(spot) {
+      var isMyGroup = (spot.groupId === myGroupId);
+      var stars = '★'.repeat(spot.rating) + '☆'.repeat(5 - spot.rating);
+      var badgeHtml = isMyGroup ? '<span style="color:green;">[👥グループ]</span>' : '<span style="color:orange;">[🌐全体]</span>';
+      var tagsHtml = renderFeatureTags(spot.features);
+      var imgHtml = spot.imageUrl ? `<img src="${spot.imageUrl}" class="spot-img" onclick="window.open('${spot.imageUrl}')">` : '';
+
+      var popupContent = `
+        <div style="font-size:13px; min-width:160px; max-width:200px;">
+          ${badgeHtml} <b>${spot.userName || '名無し'}</b><br>
+          <span style="color:#ffca08; font-size:14px;">${stars}</span><br>
+          ${tagsHtml}
+          ${imgHtml}
+          <b>${spot.comment || 'コメントなし'}</b><br><br>
+          <button style="width:100%; padding:4px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer;" 
+            onclick="deleteSpot('${spot.docId}')">削除</button>
+        </div>
+      `;
+
+      var marker = L.marker([spot.lat, spot.lng], { icon: createIcon(isMyGroup) }).bindPopup(popupContent);
+      marker.spotDocId = spot.docId;
+      marker.addTo(map);
+      activeMarkers[spot.docId] = marker;
+    }
+
+    // --------------------------------------------------
+    // 3. 写真アップロード & データ保存
+    // --------------------------------------------------
+    async function saveData() {
+      var fileInput = document.getElementById('file-photo');
+      var file = fileInput.files[0];
+      var rating = document.querySelector('input[name="rating"]:checked')?.value || 3;
+      var comment = document.getElementById('toilet-comment').value;
+      var privacy = document.querySelector('input[name="privacy"]:checked').value;
+
+      if (!tempMarker) return;
+
+      document.getElementById('loading-text').innerText = 'データを送信中...';
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        let imageUrl = '';
+        if (file) {
+          const storageRef = storage.ref(`toilet_photos/${Date.now()}_${file.name}`);
+          const snapshot = await storageRef.put(file);
+          imageUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        var newSpot = {
+          lat: tempMarker.getLatLng().lat,
+          lng: tempMarker.getLatLng().lng,
+          rating: parseInt(rating),
+          comment: comment,
+          privacy: privacy,
+          userName: myNickname,
+          groupId: myGroupId,
+          imageUrl: imageUrl,
+          features: {
+            accessible: document.getElementById('chk-accessible').checked,
+            baby: document.getElementById('chk-baby').checked,
+            washlet: document.getElementById('chk-washlet').checked,
+            open24h: document.getElementById('chk-open24h').checked,
+            facility: document.getElementById('chk-facility').checked
+          },
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('toiletSpots').add(newSpot);
+        closeForm();
+        resetFormInputs();
+      } catch (error) {
+        alert('保存に失敗しました: ' + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = '接続中...';
+      }
+    }
+
+    function resetFormInputs() {
+      document.getElementById('toilet-comment').value = '';
+      document.getElementById('file-photo').value = '';
+      document.getElementById('chk-accessible').checked = false;
+      document.getElementById('chk-baby').checked = false;
+      document.getElementById('chk-washlet').checked = false;
+      document.getElementById('chk-open24h').checked = false;
+      document.getElementById('chk-facility').checked = false;
+    }
+
+    function deleteSpot(docId) {
+      if (confirm('この記録を削除しますか？')) {
+        db.collection('toiletSpots').doc(docId).delete().then(function() {
+          refreshMapAndList();
+        });
+      }
+    }
+
+    function switchTab(tabName) {
+      if (tabName === 'map') {
+        document.getElementById('map').style.display = 'block';
+        document.getElementById('list-view').style.display = 'none';
+        document.getElementById('nav-map').classList.add('active');
+        document.getElementById('nav-list').classList.remove('active');
+        map.invalidateSize();
+      } else {
+        document.getElementById('map').style.display = 'none';
+        document.getElementById('list-view').style.display = 'block';
+        document.getElementById('nav-list').classList.add('active');
+        document.getElementById('nav-map').classList.remove('active');
+        renderList();
+      }
+    }
+
+    function renderList() {
+      var container = document.getElementById('list-container');
+      var searchQuery = document.getElementById('search-box').value.toLowerCase();
+      var sortMethod = document.getElementById('sort-box').value;
+
+      var filtered = allSpots.filter(function(spot) {
+        var matchesText = (spot.comment || '').toLowerCase().includes(searchQuery) ||
+                          (spot.userName || '').toLowerCase().includes(searchQuery);
+        var matchesFilter = activeFilters.every(function(f) {
+          return spot.features && spot.features[f] === true;
+        });
+        return matchesText && matchesFilter;
+      });
+
+      filtered.sort(function(a, b) {
+        if (sortMethod === 'highest') return b.rating - a.rating;
+        return 0;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">表示できる記録がありません。</div>';
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(spot, index) {
+        var stars = '★'.repeat(spot.rating) + '☆'.repeat(5 - spot.rating);
+        var isMyGroup = (spot.groupId === myGroupId);
+        var badgeClass = isMyGroup ? 'badge-group' : 'badge-public';
+        var badgeText = isMyGroup ? '👥 グループ' : '🌐 全体共有';
+        var tagsHtml = renderFeatureTags(spot.features);
+        var imgHtml = spot.imageUrl ? `<img src="${spot.imageUrl}" class="spot-img" onclick="window.open('${spot.imageUrl}')">` : '';
+
+        // インフィード広告枠（3件目に表示）
+        if (index === 2) {
+          html += `
+            <div class="ad-container-card">
+              <b>【PR】おすすめの除菌スプレー</b><br>
+              外出先のトイレでも安心！携帯用クリーンミスト
+            </div>
+          `;
+        }
+
+        html += `
+          <div class="list-item">
+            <div class="list-header">
+              <span class="list-stars">${stars}</span>
+              <span class="list-badge ${badgeClass}">${badgeText}</span>
+            </div>
+            ${tagsHtml}
+            ${imgHtml}
+            <div class="list-comment"><b>${spot.comment || 'コメントなし'}</b></div>
+            <div class="list-user">投稿者: <b>${spot.userName || '名無し'}</b></div>
+            <div class="list-actions">
+              <button class="btn-map" onclick="viewOnMap('${spot.docId}')">📍 地図で確認</button>
+              <button class="btn-delete" onclick="deleteSpot('${spot.docId}')">🗑️ 削除</button>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function viewOnMap(docId) {
+      switchTab('map');
+      var target = allSpots.find(function(s) { return s.docId === docId; });
+      if (target) {
+        map.setView([target.lat, target.lng], 17);
+        if (activeMarkers[docId]) { activeMarkers[docId].openPopup(); }
+      }
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+        L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
+          radius: 8, fillColor: "#007bff", color: "#fff", weight: 2, fillOpacity: 0.8
+        }).addTo(map).bindPopup("現在地");
+      });
+    }
+
+    map.on('click', function(e) {
+      if (tempMarker) { map.removeLayer(tempMarker); }
+      tempMarker = L.marker(e.latlng).addTo(map);
+      openForm();
+    });
+
+    function openForm() { document.getElementById('input-form').classList.add('open'); }
+    function closeForm() {
+      document.getElementById('input-form').classList.remove('open');
+      if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    }
+
+    function openSettings() {
+      document.getElementById('input-nickname').value = myNickname;
+      document.getElementById('input-group').value = myGroupId;
+      document.getElementById('settings-modal').classList.add('open');
+    }
+    function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+    
+    function saveSettings() {
+      myNickname = document.getElementById('input-nickname').value || 'ゲスト';
+      myGroupId = document.getElementById('input-group').value || 'free';
+      localStorage.setItem('user_nickname', myNickname);
+      localStorage.setItem('user_group', myGroupId);
+      updateProfileUI();
+      closeSettings();
+      alert('設定を保存しました。');
+      location.reload();
+    }
+
+    // --------------------------------------------------
+    // 4. PWA Service Worker 自動登録
+    // --------------------------------------------------
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
+        self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+        self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).catch(() => {});
+    }
+  </script>
+</body>
+</html>
