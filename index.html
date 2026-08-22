@@ -106,10 +106,10 @@
     .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
     .list-stars { color: #ffca08; font-size: 16px; }
     .list-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-    .badge-group { background: #e6f4ea; color: #137333; }
-    .badge-public { background: #fce8e6; color: #c5221f; }
-    .badge-private { background: #f3e8ff; color: #6f42c1; }
-    .distance-tag { font-size: 11px; color: #007bff; font-weight: bold; margin-left: auto; }
+    .badge-group { background: #e6f4ea; color: #137333; border: 1px solid #b7e1cd; }
+    .badge-public { background: #fce8e6; color: #c5221f; border: 1px solid #f6c2be; }
+    .badge-private { background: #f3e8ff; color: #6f42c1; border: 1px solid #d8b4fe; }
+    .distance-tag { font-size: 11px; color: #007bff; font-weight: bold; margin-left: auto; margin-right: 8px;}
 
     .tag-container { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
     .feature-tag { font-size: 11px; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; }
@@ -168,34 +168,14 @@
     .footer-links { text-align: center; padding: 10px; font-size: 11px; color: #666; background: #fff; border-top: 1px solid #eee; }
     .footer-links a { color: #007bff; text-decoration: none; margin: 0 5px; }
 
-    /* 【長押し対策】地図、ボタン類、モーダルラベルのテキスト選択およびiOSコールアウトを防止 */
-    #map,
-    .leaflet-control-container,
-    .leaflet-control-zoom a,
-    .leaflet-bar a,
-    #header-settings,
-    #search-location-bar,
-    #filter-bar,
-    #bottom-nav,
-    .form-header,
-    .close-btn,
-    .save-btn,
-    label,
-    .star-rating label {
-      -webkit-touch-callout: none; /* iOSの長押しポップアップメニューを禁止 */
-      -webkit-user-select: none;   /* Safari / iOS Safari */
-      -moz-user-select: none;      /* Firefox */
-      -ms-user-select: none;       /* IE / Edge */
-      user-select: none;           /* 標準プロパティ */
+    #map, .leaflet-control-container, .leaflet-control-zoom a, .leaflet-bar a,
+    #header-settings, #search-location-bar, #filter-bar, #bottom-nav,
+    .form-header, .close-btn, .save-btn, label, .star-rating label {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none; user-select: none;
     }
-
-    /* 文字入力フィールドだけは通常の選択・入力を許可 */
-    input[type="text"],
-    textarea {
-      -webkit-user-select: text;
-      -moz-user-select: text;
-      -ms-user-select: text;
-      user-select: text;
+    input[type="text"], textarea {
+      -webkit-user-select: text; user-select: text;
     }
   </style>
 </head>
@@ -272,9 +252,13 @@
     <div class="form-group">
       <label>公開範囲</label>
       <div class="privacy-group">
-        <label><input type="radio" name="privacy" value="group" checked> 👥 グループのみ共有</label>
-        <label><input type="radio" name="privacy" value="public"> 🌐 全体公開（みんなで共有）</label>
-        <label><input type="radio" name="privacy" value="private"> 🔒 自分のみ（クラウド非公開保存）</label>
+        <label><input type="radio" name="privacy" value="group" checked onchange="toggleGroupSelect()"> 👥 グループのみ共有</label>
+        
+        <!-- 追加: 投稿先グループ選択用のセレクトボックス -->
+        <select id="select-post-group" style="margin-left: 25px; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; width: calc(100% - 25px); box-sizing: border-box;"></select>
+        
+        <label><input type="radio" name="privacy" value="public" onchange="toggleGroupSelect()"> 🌐 全体公開（みんなで共有）</label>
+        <label><input type="radio" name="privacy" value="private" onchange="toggleGroupSelect()"> 🔒 自分のみ（クラウド非公開保存）</label>
       </div>
     </div>
     <div class="form-group">
@@ -318,11 +302,20 @@
       <label>ニックネーム</label>
       <input type="text" id="input-nickname" placeholder="例：たろう">
     </div>
+    
+    <!-- 追加・変更: 複数グループの管理UI -->
     <div class="form-group">
-      <label>グループID（合言葉）</label>
-      <input type="text" id="input-group" placeholder="例：tanaka-family">
-      <small style="color:#666;">同じIDを入力した友達同士で記録を共有できます。</small>
+      <label>参加中のグループID（合言葉）</label>
+      <div id="group-list-container" style="margin-bottom:10px; font-size:13px; color:#555;">
+        <!-- グループリストがここに表示されます -->
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="input-new-group" placeholder="新しいグループIDを入力" style="flex:1;">
+        <button onclick="addGroup()" style="padding:10px; background:#28a745; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">追加</button>
+      </div>
+      <small style="color:#666; display:block; margin-top:5px;">同じIDを入力した友達同士で記録を共有できます。複数登録可能です。</small>
     </div>
+    
     <button class="save-btn" onclick="saveSettings()">設定を保存</button>
   </div>
 
@@ -340,7 +333,7 @@
   </div>
 
   <script>
-    // Firebase設定
+    // Firebase設定 (※公開環境へのAPIキーのハードコーディングにはご注意ください。必要に応じて環境変数等を検討してください。)
     const firebaseConfig = {
       apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
       authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
@@ -357,7 +350,25 @@
 
     let currentUid = null;
     let myNickname = localStorage.getItem('user_nickname') || 'ゲスト';
-    let myGroupId = localStorage.getItem('user_group') || 'free';
+    
+    // ■ 複数グループの初期化と後方互換性(マイグレーション)処理
+    let myGroupIds = [];
+    try {
+      const storedGroups = localStorage.getItem('user_groups');
+      if (storedGroups) {
+        myGroupIds = JSON.parse(storedGroups);
+      } else {
+        // 過去バージョンの単一グループデータがあれば移行
+        const oldGroup = localStorage.getItem('user_group');
+        if (oldGroup && oldGroup !== 'free') {
+          myGroupIds = [oldGroup];
+          localStorage.setItem('user_groups', JSON.stringify(myGroupIds));
+        }
+      }
+    } catch (e) {
+      myGroupIds = [];
+    }
+
     let activeFilters = [];
 
     // XSS 対策エスケープ関数
@@ -373,7 +384,8 @@
 
     function updateProfileUI() {
       document.getElementById('disp-nickname').innerText = myNickname;
-      document.getElementById('disp-group').innerText = myGroupId;
+      const groupText = myGroupIds.length > 0 ? `${myGroupIds.length}個のグループ` : '未設定';
+      document.getElementById('disp-group').innerText = groupText;
     }
     updateProfileUI();
 
@@ -448,7 +460,6 @@
       document.getElementById('loading').style.display = 'flex';
 
       try {
-        // ※ Nominatimの利用規約に沿うため、実運用時はご自身の連絡先メールアドレスをご指定ください
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&email=info@toilet-app.com`);
         const data = await res.json();
 
@@ -497,16 +508,20 @@
       });
     }
 
-    // 各ルール階層（全体 / グループ / 自分のみ）からデータ受信
+    // ■ 各ルール階層（全体 / 複数のグループ / 自分のみ）からデータ受信
     function setupRealtimeListeners() {
       unsubscribers.forEach(unsub => unsub());
       unsubscribers = [];
 
       let publicSpots = [];
-      let groupSpots = [];
+      let groupSpotsMap = {};
       let privateSpots = [];
 
       const updateAll = () => {
+        let groupSpots = [];
+        Object.values(groupSpotsMap).forEach(spots => {
+          groupSpots = groupSpots.concat(spots);
+        });
         allSpots = [...publicSpots, ...groupSpots, ...privateSpots];
         refreshMapAndList();
         document.getElementById('loading').style.display = 'none';
@@ -520,14 +535,20 @@
         }, err => console.error(err))
       );
 
-      // ② グループ
-      if (myGroupId) {
-        unsubscribers.push(
-          db.collection('groups').doc(myGroupId).collection('toiletSpots').onSnapshot(snap => {
-            groupSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', ...doc.data() }));
-            updateAll();
-          }, err => console.error(err))
-        );
+      // ② グループ（登録されているすべてのグループを並列で監視）
+      if (myGroupIds.length > 0) {
+        myGroupIds.forEach(groupId => {
+          unsubscribers.push(
+            db.collection('groups').doc(groupId).collection('toiletSpots').onSnapshot(snap => {
+              // 取得時にgroupIdも付与してメモリ上で管理
+              groupSpotsMap[groupId] = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', groupId: groupId, ...doc.data() }));
+              updateAll();
+            }, err => console.error(err))
+          );
+        });
+      } else {
+        // グループが1つもなくても合成処理は呼び出す
+        updateAll();
       }
 
       // ③ 自分のみ
@@ -595,7 +616,8 @@
       if (spot.privacy === 'private') {
         badgeHtml = '<span style="color:#6f42c1;">[🔒自分のみ]</span>';
       } else if (spot.privacy === 'group') {
-        badgeHtml = '<span style="color:green;">[👥グループ]</span>';
+        const groupName = escapeHTML(spot.groupId || 'グループ');
+        badgeHtml = `<span style="color:green;">[👥${groupName}]</span>`;
       } else {
         badgeHtml = '<span style="color:orange;">[🌐全体]</span>';
       }
@@ -609,7 +631,7 @@
       var isOwner = spot.userId === currentUid;
       var deleteBtnHtml = isOwner ? 
         `<button style="flex:1; padding:5px 2px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
-          onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
+          onclick="deleteSpot('${spot.docId}')">🗑️ 削除</button>` : '';
 
       var popupContent = `
         <div style="font-size:13px; min-width:170px; max-width:210px;">
@@ -649,6 +671,16 @@
 
       if (!tempMarker) return;
 
+      // ■ 投稿先のグループ判定
+      var targetGroup = null;
+      if (privacy === 'group') {
+        if (myGroupIds.length === 0) {
+          alert('参加中のグループがありません。設定からグループを追加するか、別の公開範囲を選んでください。');
+          return;
+        }
+        targetGroup = document.getElementById('select-post-group').value;
+      }
+
       document.getElementById('loading-text').innerText = '保存中...';
       document.getElementById('loading').style.display = 'flex';
 
@@ -680,6 +712,7 @@
           rating: parseInt(rating),
           comment: comment,
           privacy: privacy,
+          groupId: targetGroup, // 新規追加: どのグループに投稿したかを記録
           userName: myNickname,
           userId: currentUid,
           imageUrl: imageUrl,
@@ -692,7 +725,7 @@
         if (privacy === 'public') {
           await db.collection('toiletSpots').add(newSpot);
         } else if (privacy === 'group') {
-          await db.collection('groups').doc(myGroupId).collection('toiletSpots').add(newSpot);
+          await db.collection('groups').doc(targetGroup).collection('toiletSpots').add(newSpot);
         } else if (privacy === 'private') {
           await db.collection('users').doc(currentUid).collection('toiletSpots').add(newSpot);
         }
@@ -717,23 +750,27 @@
       document.getElementById('chk-facility').checked = false;
     }
 
-    function getDocRef(docId, pathType) {
-      if (pathType === 'public') {
-        return db.collection('toiletSpots').doc(docId);
-      } else if (pathType === 'group') {
-        return db.collection('groups').doc(myGroupId).collection('toiletSpots').doc(docId);
-      } else if (pathType === 'private') {
-        return db.collection('users').doc(currentUid).collection('toiletSpots').doc(docId);
+    // ■ スポットオブジェクトから正しい参照パスを取得する関数
+    function getDocRef(spot) {
+      if (spot.pathType === 'public') {
+        return db.collection('toiletSpots').doc(spot.docId);
+      } else if (spot.pathType === 'group') {
+        return db.collection('groups').doc(spot.groupId).collection('toiletSpots').doc(spot.docId);
+      } else if (spot.pathType === 'private') {
+        return db.collection('users').doc(currentUid).collection('toiletSpots').doc(spot.docId);
       }
       return null;
     }
 
-    async function deleteSpot(docId, pathType) {
+    async function deleteSpot(docId) {
       if (confirm('この記録を削除しますか？')) {
         document.getElementById('loading-text').innerText = '削除中...';
         document.getElementById('loading').style.display = 'flex';
         try {
-          const docRef = getDocRef(docId, pathType);
+          const spot = allSpots.find(s => s.docId === docId);
+          if (!spot) throw new Error('データが見つかりません。');
+
+          const docRef = getDocRef(spot);
           if (!docRef) throw new Error('参照の取得に失敗しました。');
 
           const docSnap = await docRef.get();
@@ -774,7 +811,7 @@
           const docId = cb.value;
           const spot = allSpots.find(s => s.docId === docId);
           if (spot && spot.userId === currentUid) {
-            const docRef = getDocRef(docId, spot.pathType);
+            const docRef = getDocRef(spot);
             if (docRef) {
               if (spot.imagePath) {
                 try { await storage.ref(spot.imagePath).delete(); } catch (e) {}
@@ -854,7 +891,7 @@
           badgeText = '🔒 自分のみ';
         } else if (spot.privacy === 'group') {
           badgeClass = 'badge-group';
-          badgeText = '👥 グループ';
+          badgeText = `👥 ${escapeHTML(spot.groupId || 'グループ')}`;
         }
 
         var tagsHtml = renderFeatureTags(spot.features);
@@ -865,7 +902,7 @@
 
         var isOwner = spot.userId === currentUid;
         var deleteBtnHtml = isOwner ? 
-          `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
+          `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}')">🗑️ 削除</button>` : '';
 
         if (index === 2) {
           html += `
@@ -973,17 +1010,37 @@
     };
     locateControl.addTo(map);
 
-    // 地図を長押し（スマホ）、または右クリック（PC）で一時ピンを立ててフォームを開く
     map.on('contextmenu', function(e) {
       if (tempMarker) { 
         map.removeLayer(tempMarker); 
       }
-      // ユーザーがピンの位置を微調整できるようにドラッグ可能（draggable）に設定
       tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
       openForm();
     });
 
-    function openForm() { document.getElementById('input-form').classList.add('open'); }
+    // ■ フォーム開閉とラジオボタン連動の処理
+    function toggleGroupSelect() {
+      const selectGroup = document.getElementById('select-post-group');
+      const isGroupChecked = document.querySelector('input[name="privacy"]:checked').value === 'group';
+      
+      if (isGroupChecked && myGroupIds.length > 0) {
+        selectGroup.style.display = 'block';
+      } else {
+        selectGroup.style.display = 'none';
+      }
+    }
+
+    function openForm() { 
+      const selectGroup = document.getElementById('select-post-group');
+      if (myGroupIds.length > 0) {
+        selectGroup.innerHTML = myGroupIds.map(g => `<option value="${escapeHTML(g)}">${escapeHTML(g)}</option>`).join('');
+      } else {
+        selectGroup.innerHTML = '<option value="">グループ未設定</option>';
+      }
+      toggleGroupSelect();
+      document.getElementById('input-form').classList.add('open'); 
+    }
+    
     function closeForm() {
       document.getElementById('input-form').classList.remove('open');
       if (tempMarker) { 
@@ -992,11 +1049,46 @@
       }
     }
 
+    // ■ 設定画面のグループ管理処理
+    function renderGroupSettings() {
+      const container = document.getElementById('group-list-container');
+      if (myGroupIds.length === 0) {
+        container.innerHTML = '<div style="padding: 10px; background: #fafafa; border-radius: 4px; text-align: center;">参加中のグループはありません</div>';
+        return;
+      }
+      container.innerHTML = myGroupIds.map((g, index) => 
+        `<div style="display:flex; justify-content:space-between; align-items:center; background:#eee; padding:8px 10px; margin-bottom:5px; border-radius:4px;">
+          <span style="font-weight:bold;">${escapeHTML(g)}</span>
+          <button onclick="removeGroup(${index})" style="background:#ff4444; color:white; border:none; border-radius:4px; padding:4px 10px; cursor:pointer;">削除</button>
+        </div>`
+      ).join('');
+    }
+
+    function addGroup() {
+      const input = document.getElementById('input-new-group');
+      const newG = input.value.trim();
+      if (newG && !myGroupIds.includes(newG)) {
+        myGroupIds.push(newG);
+        input.value = '';
+        renderGroupSettings();
+      } else if (myGroupIds.includes(newG)) {
+        alert('そのグループは既に追加されています。');
+      }
+    }
+
+    function removeGroup(index) {
+      if(confirm('このグループをリストから外しますか？ (データは削除されません)')) {
+        myGroupIds.splice(index, 1);
+        renderGroupSettings();
+      }
+    }
+
     function openSettings() {
       document.getElementById('input-nickname').value = myNickname;
-      document.getElementById('input-group').value = myGroupId;
+      renderGroupSettings();
       document.getElementById('settings-modal').classList.add('open');
     }
+    
     function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
 
     function openPrivacyModal() { document.getElementById('privacy-modal').classList.add('open'); }
@@ -1004,9 +1096,9 @@
     
     function saveSettings() {
       myNickname = document.getElementById('input-nickname').value || 'ゲスト';
-      myGroupId = document.getElementById('input-group').value || 'free';
       localStorage.setItem('user_nickname', myNickname);
-      localStorage.setItem('user_group', myGroupId);
+      localStorage.setItem('user_groups', JSON.stringify(myGroupIds));
+      
       updateProfileUI();
       closeSettings();
       setupRealtimeListeners();
