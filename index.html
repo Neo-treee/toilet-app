@@ -511,7 +511,12 @@
     }
 
     function refreshMapAndList() {
-      Object.keys(activeMarkers).forEach(function(key) { map.removeLayer(activeMarkers[key]); });
+      // 既存の全ピンを一度地図から除去
+      Object.keys(activeMarkers).forEach(function(key) { 
+        if (activeMarkers[key]) {
+          map.removeLayer(activeMarkers[key]); 
+        }
+      });
       activeMarkers = {};
 
       allSpots.forEach(function(spot) {
@@ -519,7 +524,9 @@
           if (f === 'privateOnly') return spot.privacy === 'private';
           return spot.features && spot.features[f] === true;
         });
-        if (matchesFilter) { addMarkerToMap(spot); }
+        if (matchesFilter) { 
+          addMarkerToMap(spot); 
+        }
       });
 
       if (document.getElementById('list-view').style.display === 'block') { renderList(); }
@@ -550,7 +557,9 @@
     }
 
     function addMarkerToMap(spot) {
-      var stars = '★'.repeat(spot.rating) + '☆'.repeat(5 - spot.rating);
+      if (!spot.lat || !spot.lng) return;
+
+      var stars = '★'.repeat(spot.rating || 3) + '☆'.repeat(5 - (spot.rating || 3));
       var badgeHtml = '';
       if (spot.privacy === 'private') {
         badgeHtml = '<span style="color:#6f42c1;">[🔒自分のみ]</span>';
@@ -587,8 +596,10 @@
         </div>
       `;
 
-      var marker = L.marker([spot.lat, spot.lng], { icon: createIcon(spot.privacy === 'private' ? 'private' : (spot.privacy === 'group' ? 'group' : 'public')) }).bindPopup(popupContent);
-      marker.spotDocId = spot.docId;
+      var marker = L.marker([spot.lat, spot.lng], { 
+        icon: createIcon(spot.privacy) 
+      }).bindPopup(popupContent);
+
       marker.addTo(map);
       activeMarkers[spot.docId] = marker;
     }
@@ -782,7 +793,7 @@
 
       filtered.sort(function(a, b) {
         if (sortMethod === 'highest') {
-          return b.rating - a.rating;
+          return (b.rating || 0) - (a.rating || 0);
         } else if (sortMethod === 'nearest') {
           return getDistanceMeters(a.lat, a.lng) - getDistanceMeters(b.lat, b.lng);
         } else {
@@ -803,7 +814,7 @@
 
       var html = '';
       filtered.forEach(function(spot, index) {
-        var stars = '★'.repeat(spot.rating) + '☆'.repeat(5 - spot.rating);
+        var stars = '★'.repeat(spot.rating || 3) + '☆'.repeat(5 - (spot.rating || 3));
         var badgeClass = 'badge-public';
         var badgeText = '🌐 全体共有';
         
@@ -931,8 +942,11 @@
     };
     locateControl.addTo(map);
 
+    // 地図タップで即座に一時ピンを立ててフォームを開く
     map.on('click', function(e) {
-      if (tempMarker) { map.removeLayer(tempMarker); }
+      if (tempMarker) { 
+        map.removeLayer(tempMarker); 
+      }
       tempMarker = L.marker(e.latlng).addTo(map);
       openForm();
     });
@@ -940,7 +954,10 @@
     function openForm() { document.getElementById('input-form').classList.add('open'); }
     function closeForm() {
       document.getElementById('input-form').classList.remove('open');
-      if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+      if (tempMarker) { 
+        map.removeLayer(tempMarker); 
+        tempMarker = null; 
+      }
     }
 
     function openSettings() {
