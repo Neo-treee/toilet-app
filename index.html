@@ -6,13 +6,7 @@
   
   <title>トイレマップ ー みんなで世界のトイレを見つけて投稿しよう</title>
   <meta name="description" content="世界中の公衆トイレや利用可能なトイレを簡単に検索・投稿できるシェアリングアプリです。近くのトイレを今すぐ見つけよう！">
-  <meta name="keywords" content="トイレ,トイレマップ,多目的トイレ,オムツ台,24時間トイレ,現在地検索">
   <meta name="theme-color" content="#007bff">
-
-  <meta property="og:title" content="トイレマップ ー みんなで世界のトイレを見つけて投稿しよう">
-  <meta property="og:description" content="世界中の公衆トイレや利用可能なトイレを簡単に検索・投稿できるシェアリングアプリです。近くのトイレを今すぐ見つけよう！">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://toilet-app-black.vercel.app">
 
   <!-- PWA 対応設定 -->
   <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22%E3%83%88%E3%82%A4%E3%83%AC%E3%83%9E%E3%83%83%E3%83%97%22,%22short_name%22:%22%E3%83%88%E3%82%A4%E3%83%AC%E3%83%9E%E3%83%83%E3%83%97%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%23ffffff%22,%22theme_color%22:%22%23007bff%22}">
@@ -20,19 +14,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="トイレマップ">
-  
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9TQVXQ357D"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-9TQVXQ357D');
-  </script>
 
-  <!-- Leaflet CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Google Maps API (Places, Geometry ライブラリを確実に読み込み) -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places,geometry"></script>
 
   <!-- Firebase SDK (v9 compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -123,13 +107,13 @@
 
     .empty-state { text-align: center; padding: 30px; color: #888; }
 
-    #input-form, #settings-modal, #privacy-modal {
+    #input-form, #settings-modal, #privacy-modal, #detail-modal {
       position: fixed; bottom: -100%; left: 0; width: 100%; background: white;
       z-index: 1002; border-top-left-radius: 20px; border-top-right-radius: 20px;
       box-shadow: 0 -2px 10px rgba(0,0,0,0.2); transition: bottom 0.3s ease-out;
       padding: 20px; box-sizing: border-box; max-height: 85%; overflow-y: auto;
     }
-    #input-form.open, #settings-modal.open, #privacy-modal.open { bottom: 0; }
+    #input-form.open, #settings-modal.open, #privacy-modal.open, #detail-modal.open { bottom: 0; }
     .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .form-title { font-weight: bold; font-size: 18px; }
     .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #888; }
@@ -157,22 +141,11 @@
       display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; color: #333;
     }
 
-    .custom-pin {
-      width: 30px; height: 30px; border-radius: 50%; border: 2px solid white;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.3); text-align: center; line-height: 28px; font-size: 16px;
-    }
-    .pin-group { background: #28a745; color: white; }
-    .pin-public { background: #ff9800; color: white; }
-    .pin-private { background: #6f42c1; color: white; }
-
     .footer-links { text-align: center; padding: 10px; font-size: 11px; color: #666; background: #fff; border-top: 1px solid #eee; }
     .footer-links a { color: #007bff; text-decoration: none; margin: 0 5px; }
 
-    /* 【長押し対策】地図、ボタン類、モーダルラベルのテキスト選択およびiOSコールアウトを防止 */
+    /* 長押し対策 */
     #map,
-    .leaflet-control-container,
-    .leaflet-control-zoom a,
-    .leaflet-bar a,
     #header-settings,
     #search-location-bar,
     #filter-bar,
@@ -182,19 +155,12 @@
     .save-btn,
     label,
     .star-rating label {
-      -webkit-touch-callout: none; /* iOSの長押しポップアップメニューを禁止 */
-      -webkit-user-select: none;   /* Safari / iOS Safari */
-      -moz-user-select: none;      /* Firefox */
-      -ms-user-select: none;       /* IE / Edge */
-      user-select: none;           /* 標準プロパティ */
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
-
-    /* 文字入力フィールドだけは通常の選択・入力を許可 */
-    input[type="text"],
-    textarea {
+    input[type="text"], textarea {
       -webkit-user-select: text;
-      -moz-user-select: text;
-      -ms-user-select: text;
       user-select: text;
     }
   </style>
@@ -210,7 +176,7 @@
     <button class="settings-btn" onclick="openSettings()">設定</button>
   </div>
 
-  <!-- 駅名・住所検索バー -->
+  <!-- 駅名・住所検索バー (Google Places Geocoderを使用) -->
   <div id="search-location-bar">
     <input type="text" id="input-search-location" class="loc-input" placeholder="駅名・住所で検索 (例: 新宿駅)">
     <button class="loc-btn" onclick="searchLocation()">🔍 検索</button>
@@ -308,6 +274,32 @@
     <button class="save-btn" onclick="saveData()">保存する</button>
   </div>
 
+  <!-- スポット詳細・追加レビュー用モーダル -->
+  <div id="detail-modal">
+    <div class="form-header">
+      <span class="form-title">トイレの詳細・追加評価</span>
+      <button class="close-btn" onclick="closeDetailModal()">×</button>
+    </div>
+    <div id="detail-content-area" style="font-size:13px; margin-bottom:15px;"></div>
+    <hr style="border:0; border-top:1px solid #ddd; margin:15px 0;">
+    <h4 style="margin:0 0 10px 0; font-size:14px;">このトイレに評価・コメントを追加する</h4>
+    <div class="form-group">
+      <label>追加評価（星1〜5）</label>
+      <div class="star-rating" id="review-star-group">
+        <input type="radio" id="rstar5" name="review-rating" value="5"><label for="rstar5">★</label>
+        <input type="radio" id="rstar4" name="review-rating" value="4"><label for="rstar4">★</label>
+        <input type="radio" id="rstar3" name="review-rating" value="3" checked><label for="rstar3">★</label>
+        <input type="radio" id="rstar2" name="review-rating" value="2"><label for="rstar2">★</label>
+        <input type="radio" id="rstar1" name="review-rating" value="1"><label for="rstar1">★</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>コメント</label>
+      <textarea id="review-comment" placeholder="追加の感想や今の状態を入力..."></textarea>
+    </div>
+    <button class="save-btn" onclick="submitReview()">レビューを追加する</button>
+  </div>
+
   <!-- ユーザー設定モーダル -->
   <div id="settings-modal">
     <div class="form-header">
@@ -319,9 +311,13 @@
       <input type="text" id="input-nickname" placeholder="例：たろう">
     </div>
     <div class="form-group">
-      <label>グループID（合言葉）</label>
-      <input type="text" id="input-group" placeholder="例：tanaka-family">
-      <small style="color:#666;">同じIDを入力した友達同士で記録を共有できます。</small>
+      <label>所属グループ（カンマ区切りで複数設定可）</label>
+      <input type="text" id="input-groups" placeholder="例：family, work, friends">
+      <small style="color:#666;">複数のグループIDをカンマ(,)区切りで登録できます。投稿時に選択可能になります。</small>
+    </div>
+    <div class="form-group">
+      <label>メイン（閲覧・投稿先）グループの選択</label>
+      <select id="select-active-group" class="sort-select" style="width:100%;"></select>
     </div>
     <button class="save-btn" onclick="saveSettings()">設定を保存</button>
   </div>
@@ -357,10 +353,11 @@
 
     let currentUid = null;
     let myNickname = localStorage.getItem('user_nickname') || 'ゲスト';
-    let myGroupId = localStorage.getItem('user_group') || 'free';
+    let myGroupsInput = localStorage.getItem('user_groups') || 'free';
+    let myGroupsArray = myGroupsInput.split(',').map(g => g.trim()).filter(Boolean);
+    let currentActiveGroup = localStorage.getItem('user_active_group') || myGroupsArray[0] || 'free';
     let activeFilters = [];
 
-    // XSS 対策エスケープ関数
     function escapeHTML(str) {
       if (!str) return '';
       return String(str)
@@ -373,23 +370,48 @@
 
     function updateProfileUI() {
       document.getElementById('disp-nickname').innerText = myNickname;
-      document.getElementById('disp-group').innerText = myGroupId;
+      document.getElementById('disp-group').innerText = currentActiveGroup;
     }
     updateProfileUI();
 
-    // デフォルト位置：東京駅
+    // Google Maps 初期化
     const DEFAULT_LAT = 35.6812;
     const DEFAULT_LNG = 139.7671;
-    var map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LNG], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+    let map = null;
+    let googleMarkers = {};
+    let tempMarker = null;
+    let allSpots = [];
+    let currentLat = null;
+    let currentLng = null;
+    let currentMarker = null;
+    let unsubscribers = [];
+    let selectedSpotForReview = null;
 
-    var tempMarker = null;
-    var allSpots = [];
-    var activeMarkers = {};
-    var currentLat = null;
-    var currentLng = null;
-    var currentMarker = null;
-    var unsubscribers = [];
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: DEFAULT_LAT, lng: DEFAULT_LNG },
+        zoom: 12,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false
+      });
+
+      // 地図長押し（右クリック・ロングタップ）で一時ピン
+      map.addListener('rightclick', function(e) {
+        if (tempMarker) {
+          tempMarker.setMap(null);
+        }
+        tempMarker = new google.maps.Marker({
+          position: e.latLng,
+          map: map,
+          draggable: true,
+          animation: google.maps.Animation.DROP
+        });
+        openForm();
+      });
+    }
+
+    window.onload = initMap;
 
     // 匿名認証とリアルタイム同期の初期化
     auth.signInAnonymously().catch(function(error) {
@@ -403,25 +425,6 @@
       }
     });
 
-    // アイコン生成
-    function createIcon(privacyType) {
-      var className = 'custom-pin pin-public';
-      var iconSymbol = '🚽';
-      if (privacyType === 'private') {
-        className = 'custom-pin pin-private';
-        iconSymbol = '🔒';
-      } else if (privacyType === 'group') {
-        className = 'custom-pin pin-group';
-      }
-      return L.divIcon({
-        className: className,
-        html: iconSymbol,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        popupAnchor: [0, -15]
-      });
-    }
-
     function openNavigation(lat, lng) {
       const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
       window.open(url, '_blank');
@@ -429,15 +432,17 @@
 
     function calculateDistanceStr(lat2, lng2) {
       if (!currentLat || !currentLng) return null;
-      var p1 = L.latLng(currentLat, currentLng);
-      var p2 = L.latLng(lat2, lng2);
-      var meters = p1.distanceTo(p2);
+      var p1 = new google.maps.LatLng(currentLat, currentLng);
+      var p2 = new google.maps.LatLng(lat2, lng2);
+      var meters = google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
       return meters < 1000 ? `${Math.round(meters)}m` : `${(meters / 1000).toFixed(1)}km`;
     }
 
     function getDistanceMeters(lat2, lng2) {
       if (!currentLat || !currentLng) return Infinity;
-      return L.latLng(currentLat, currentLng).distanceTo(L.latLng(lat2, lng2));
+      var p1 = new google.maps.LatLng(currentLat, currentLng);
+      var p2 = new google.maps.LatLng(lat2, lng2);
+      return google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
     }
 
     async function searchLocation() {
@@ -447,24 +452,17 @@
       document.getElementById('loading-text').innerText = '場所を検索中...';
       document.getElementById('loading').style.display = 'flex';
 
-      try {
-        // ※ Nominatimの利用規約に沿うため、実運用時はご自身の連絡先メールアドレスをご指定ください
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&email=info@toilet-app.com`);
-        const data = await res.json();
-
-        if (data && data.length > 0) {
-          const lat = parseFloat(data[0].lat);
-          const lon = parseFloat(data[0].lon);
-          map.setView([lat, lon], 16);
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: query }, (results, status) => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = '接続中...';
+        if (status === 'OK' && results[0]) {
+          map.setCenter(results[0].geometry.location);
+          map.setZoom(16);
         } else {
           alert('該当する場所が見つかりませんでした。');
         }
-      } catch (e) {
-        alert('検索処理でエラーが発生しました。');
-      } finally {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('loading-text').innerText = '接続中...';
-      }
+      });
     }
 
     function compressImage(file, maxWidth = 1024, quality = 0.75) {
@@ -497,22 +495,29 @@
       });
     }
 
-    // 各ルール階層（全体 / グループ / 自分のみ）からデータ受信
+    // 複数グループ対応のリスナー登録
     function setupRealtimeListeners() {
       unsubscribers.forEach(unsub => unsub());
       unsubscribers = [];
 
       let publicSpots = [];
-      let groupSpots = [];
+      let groupSpotsMap = {};
       let privateSpots = [];
 
       const updateAll = () => {
-        allSpots = [...publicSpots, ...groupSpots, ...privateSpots];
+        let allGroupSpots = [];
+        Object.keys(groupSpotsMap).forEach(gKey => {
+          allGroupSpots = allGroupSpots.concat(groupSpotsMap[gKey]);
+        });
+        const spotMap = new Map();
+        [...publicSpots, ...allGroupSpots, ...privateSpots].forEach(s => spotMap.set(s.docId, s));
+        allSpots = Array.from(spotMap.values());
+
         refreshMapAndList();
         document.getElementById('loading').style.display = 'none';
       };
 
-      // ① 全体
+      // ① 全体公開
       unsubscribers.push(
         db.collection('toiletSpots').onSnapshot(snap => {
           publicSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'public', ...doc.data() }));
@@ -520,15 +525,15 @@
         }, err => console.error(err))
       );
 
-      // ② グループ
-      if (myGroupId) {
+      // ② 所属する全グループ
+      myGroupsArray.forEach(gId => {
         unsubscribers.push(
-          db.collection('groups').doc(myGroupId).collection('toiletSpots').onSnapshot(snap => {
-            groupSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', ...doc.data() }));
+          db.collection('groups').doc(gId).collection('toiletSpots').onSnapshot(snap => {
+            groupSpotsMap[gId] = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', groupName: gId, ...doc.data() }));
             updateAll();
           }, err => console.error(err))
         );
-      }
+      });
 
       // ③ 自分のみ
       if (currentUid) {
@@ -542,21 +547,18 @@
     }
 
     function refreshMapAndList() {
-      // 既存の全ピンを一度地図から除去
-      Object.keys(activeMarkers).forEach(function(key) { 
-        if (activeMarkers[key]) {
-          map.removeLayer(activeMarkers[key]); 
-        }
+      Object.keys(googleMarkers).forEach(key => {
+        if (googleMarkers[key]) googleMarkers[key].marker.setMap(null);
       });
-      activeMarkers = {};
+      googleMarkers = {};
 
-      allSpots.forEach(function(spot) {
-        var matchesFilter = activeFilters.every(function(f) {
+      allSpots.forEach(spot => {
+        var matchesFilter = activeFilters.every(f => {
           if (f === 'privateOnly') return spot.privacy === 'private';
           return spot.features && spot.features[f] === true;
         });
-        if (matchesFilter) { 
-          addMarkerToMap(spot); 
+        if (matchesFilter) {
+          addMarkerToMap(spot);
         }
       });
 
@@ -591,14 +593,9 @@
       if (!spot.lat || !spot.lng) return;
 
       var stars = '★'.repeat(spot.rating || 3) + '☆'.repeat(5 - (spot.rating || 3));
-      var badgeHtml = '';
-      if (spot.privacy === 'private') {
-        badgeHtml = '<span style="color:#6f42c1;">[🔒自分のみ]</span>';
-      } else if (spot.privacy === 'group') {
-        badgeHtml = '<span style="color:green;">[👥グループ]</span>';
-      } else {
-        badgeHtml = '<span style="color:orange;">[🌐全体]</span>';
-      }
+      var badgeHtml = spot.privacy === 'private' ? '<span style="color:#6f42c1;">[🔒自分のみ]</span>' :
+                      spot.privacy === 'group' ? `<span style="color:green;">[👥グループ:${spot.groupName || ''}]</span>` :
+                      '<span style="color:orange;">[🌐全体]</span>';
 
       var tagsHtml = renderFeatureTags(spot.features);
       var safeImgUrl = escapeHTML(spot.imageUrl);
@@ -609,30 +606,38 @@
       var isOwner = spot.userId === currentUid;
       var deleteBtnHtml = isOwner ? 
         `<button style="flex:1; padding:5px 2px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
-          onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
+          onclick="deleteSpot('${spot.docId}', '${spot.pathType}', '${spot.groupName}')">🗑️ 削除</button>` : '';
 
-      var popupContent = `
-        <div style="font-size:13px; min-width:170px; max-width:210px;">
+      var contentString = `
+        <div style="font-size:13px; min-width:180px; max-width:220px;">
           ${badgeHtml} <b>${escapeHTML(spot.userName || '名無し')}</b><br>
           <span style="color:#ffca08; font-size:14px;">${stars}</span><br>
           ${distHtml}
           ${tagsHtml}
           ${imgHtml}
           <b>${escapeHTML(spot.comment || 'コメントなし')}</b><br><br>
-          <div style="display:flex; gap:4px;">
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
             <button style="flex:1; padding:5px 2px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
               onclick="openNavigation(${spot.lat}, ${spot.lng})">🧭 ナビ</button>
+            <button style="flex:1; padding:5px 2px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
+              onclick="openDetailModal('${spot.docId}')">💬 評価・追加</button>
             ${deleteBtnHtml}
           </div>
         </div>
       `;
 
-      var marker = L.marker([spot.lat, spot.lng], { 
-        icon: createIcon(spot.privacy) 
-      }).bindPopup(popupContent);
+      var marker = new google.maps.Marker({
+        position: { lat: spot.lat, lng: spot.lng },
+        map: map,
+        title: spot.comment || 'トイレ'
+      });
 
-      marker.addTo(map);
-      activeMarkers[spot.docId] = marker;
+      var infowindow = new google.maps.InfoWindow({ content: contentString });
+      marker.addListener('click', () => {
+        infowindow.open(map, marker);
+      });
+
+      googleMarkers[spot.docId] = { marker, infowindow };
     }
 
     async function saveData() {
@@ -653,8 +658,8 @@
       document.getElementById('loading').style.display = 'flex';
 
       try {
-        const lat = tempMarker.getLatLng().lat;
-        const lng = tempMarker.getLatLng().lng;
+        const lat = tempMarker.getPosition().lat();
+        const lng = tempMarker.getPosition().lng();
         const features = {
           accessible: document.getElementById('chk-accessible').checked,
           baby: document.getElementById('chk-baby').checked,
@@ -680,19 +685,20 @@
           rating: parseInt(rating),
           comment: comment,
           privacy: privacy,
+          groupName: privacy === 'group' ? currentActiveGroup : '',
           userName: myNickname,
           userId: currentUid,
           imageUrl: imageUrl,
           imagePath: imagePath,
           features: features,
+          reviews: [],
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        // パス切り替え保存
         if (privacy === 'public') {
           await db.collection('toiletSpots').add(newSpot);
         } else if (privacy === 'group') {
-          await db.collection('groups').doc(myGroupId).collection('toiletSpots').add(newSpot);
+          await db.collection('groups').doc(currentActiveGroup).collection('toiletSpots').add(newSpot);
         } else if (privacy === 'private') {
           await db.collection('users').doc(currentUid).collection('toiletSpots').add(newSpot);
         }
@@ -717,23 +723,24 @@
       document.getElementById('chk-facility').checked = false;
     }
 
-    function getDocRef(docId, pathType) {
+    function getDocRef(docId, pathType, groupName) {
       if (pathType === 'public') {
         return db.collection('toiletSpots').doc(docId);
       } else if (pathType === 'group') {
-        return db.collection('groups').doc(myGroupId).collection('toiletSpots').doc(docId);
+        return db.collection('groups').doc(groupName || currentActiveGroup).collection('toiletSpots').doc(docId);
       } else if (pathType === 'private') {
         return db.collection('users').doc(currentUid).collection('toiletSpots').doc(docId);
       }
       return null;
     }
 
-    async function deleteSpot(docId, pathType) {
+    async function deleteSpot(docId, pathType, groupName) {
       if (confirm('この記録を削除しますか？')) {
         document.getElementById('loading-text').innerText = '削除中...';
         document.getElementById('loading').style.display = 'flex';
         try {
-          const docRef = getDocRef(docId, pathType);
+          const spot = allSpots.find(s => s.docId === docId);
+          const docRef = getDocRef(docId, pathType, spot?.groupName || groupName);
           if (!docRef) throw new Error('参照の取得に失敗しました。');
 
           const docSnap = await docRef.get();
@@ -774,7 +781,7 @@
           const docId = cb.value;
           const spot = allSpots.find(s => s.docId === docId);
           if (spot && spot.userId === currentUid) {
-            const docRef = getDocRef(docId, spot.pathType);
+            const docRef = getDocRef(docId, spot.pathType, spot.groupName);
             if (docRef) {
               if (spot.imagePath) {
                 try { await storage.ref(spot.imagePath).delete(); } catch (e) {}
@@ -791,13 +798,94 @@
       }
     }
 
+    function openDetailModal(docId) {
+      selectedSpotForReview = allSpots.find(s => s.docId === docId);
+      if (!selectedSpotForReview) return;
+
+      const spot = selectedSpotForReview;
+      const stars = '★'.repeat(spot.rating || 3) + '☆'.repeat(5 - (spot.rating || 3));
+      let reviewsHtml = '';
+
+      if (spot.reviews && spot.reviews.length > 0) {
+        reviewsHtml = '<h4 style="margin:10px 0 5px 0;">みんなからの追加レビュー・コメント</h4>';
+        spot.reviews.forEach(r => {
+          const rStars = '★'.repeat(r.rating || 3) + '☆'.repeat(5 - (r.rating || 3));
+          reviewsHtml += `
+            <div style="background:#f8f9fa; padding:8px; border-radius:6px; margin-bottom:6px;">
+              <b>${escapeHTML(r.userName)}</b> <span style="color:#ffca08;">${rStars}</span><br>
+              <span>${escapeHTML(r.comment)}</span>
+            </div>
+          `;
+        });
+      } else {
+        reviewsHtml = '<p style="color:#888; font-size:12px;">まだ追加のレビューはありません。</p>';
+      }
+
+      document.getElementById('detail-content-area').innerHTML = `
+        <b>投稿者:</b> ${escapeHTML(spot.userName)}<br>
+        <b>初期評価:</b> <span style="color:#ffca08;">${stars}</span><br>
+        <b>コメント:</b> ${escapeHTML(spot.comment || 'なし')}<br>
+        ${renderFeatureTags(spot.features)}
+        <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+        ${reviewsHtml}
+      `;
+
+      document.getElementById('detail-modal').classList.add('open');
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detail-modal').classList.remove('open');
+      selectedSpotForReview = null;
+    }
+
+    async function submitReview() {
+      if (!selectedSpotForReview) return;
+      const rating = document.querySelector('input[name="review-rating"]:checked')?.value || 3;
+      const comment = document.getElementById('review-comment').value;
+
+      if (!comment) {
+        alert('コメントを入力してください。');
+        return;
+      }
+
+      document.getElementById('loading-text').innerText = 'レビュー送信中...';
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        const spot = selectedSpotForReview;
+        const docRef = getDocRef(spot.docId, spot.pathType, spot.groupName);
+        if (!docRef) throw new Error('データ参照が見つかりません。');
+
+        const newReview = {
+          userName: myNickname,
+          userId: currentUid,
+          rating: parseInt(rating),
+          comment: comment,
+          createdAt: new Date().toISOString()
+        };
+
+        await docRef.update({
+          reviews: firebase.firestore.FieldValue.arrayUnion(newReview)
+        });
+
+        document.getElementById('review-comment').value = '';
+        closeDetailModal();
+        alert('評価・コメントを追加しました！');
+      } catch (error) {
+        alert('レビューの追加に失敗しました: ' + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = '接続中...';
+      }
+    }
+
     function switchTab(tabName) {
       if (tabName === 'map') {
         document.getElementById('map').style.display = 'block';
         document.getElementById('list-view').style.display = 'none';
         document.getElementById('nav-map').classList.add('active');
         document.getElementById('nav-list').classList.remove('active');
-        map.invalidateSize();
+        google.maps.event.trigger(map, 'resize');
       } else {
         document.getElementById('map').style.display = 'none';
         document.getElementById('list-view').style.display = 'block';
@@ -854,7 +942,7 @@
           badgeText = '🔒 自分のみ';
         } else if (spot.privacy === 'group') {
           badgeClass = 'badge-group';
-          badgeText = '👥 グループ';
+          badgeText = `👥 グループ(${spot.groupName || ''})`;
         }
 
         var tagsHtml = renderFeatureTags(spot.features);
@@ -865,7 +953,7 @@
 
         var isOwner = spot.userId === currentUid;
         var deleteBtnHtml = isOwner ? 
-          `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
+          `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}', '${spot.pathType}', '${spot.groupName}')">🗑️ 削除</button>` : '';
 
         if (index === 2) {
           html += `
@@ -890,10 +978,11 @@
             ${tagsHtml}
             ${imgHtml}
             <div class="list-comment"><b>${escapeHTML(spot.comment || 'コメントなし')}</b></div>
-            <div class="list-user">投稿者: <b>${escapeHTML(spot.userName || '名無し')}</b></div>
+            <div class="list-user">投稿者: <b>${escapeHTML(spot.userName || '名無し')}</b> (${spot.reviews ? spot.reviews.length : 0}件の追加評価)</div>
             <div class="list-actions">
               <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}')">📍 地図</button>
-              <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat}, ${spot.lng})">🧭 ナビ起動</button>
+              <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat}, ${spot.lng})">🧭 ナビ</button>
+              <button class="btn-action" style="background:#17a2b8;" onclick="openDetailModal('${spot.docId}')">💬 評価</button>
               ${deleteBtnHtml}
             </div>
           </div>
@@ -904,10 +993,13 @@
 
     function viewOnMap(docId) {
       switchTab('map');
-      var target = allSpots.find(function(s) { return s.docId === docId; });
+      var target = allSpots.find(s => s.docId === docId);
       if (target) {
-        map.setView([target.lat, target.lng], 17);
-        if (activeMarkers[docId]) { activeMarkers[docId].openPopup(); }
+        map.setCenter({ lat: target.lat, lng: target.lng });
+        map.setZoom(17);
+        if (googleMarkers[docId]) {
+          googleMarkers[docId].infowindow.open(map, googleMarkers[docId].marker);
+        }
       }
     }
 
@@ -923,15 +1015,26 @@
           currentLng = pos.coords.longitude;
 
           if (currentMarker) {
-            currentMarker.setLatLng([currentLat, currentLng]);
+            currentMarker.setPosition({ lat: currentLat, lng: currentLng });
           } else {
-            currentMarker = L.circleMarker([currentLat, currentLng], {
-              radius: 8, fillColor: "#007bff", color: "#fff", weight: 2, fillOpacity: 0.8
-            }).addTo(map).bindPopup("現在地");
+            currentMarker = new google.maps.Marker({
+              position: { lat: currentLat, lng: currentLng },
+              map: map,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: "#007bff",
+                fillOpacity: 0.8,
+                strokeColor: "#ffffff",
+                strokeWeight: 2
+              },
+              title: "現在地"
+            });
           }
 
           if (isInitial) {
-            map.setView([currentLat, currentLng], 15);
+            map.setCenter({ lat: currentLat, lng: currentLng });
+            map.setZoom(15);
           }
           refreshMapAndList();
         },
@@ -947,54 +1050,52 @@
 
     updateCurrentLocation(true);
 
-    var locateControl = L.control({ position: 'topright' });
-    locateControl.onAdd = function(map) {
-      var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-      div.style.backgroundColor = 'white';
-      div.style.width = '34px';
-      div.style.height = '34px';
-      div.style.lineHeight = '34px';
-      div.style.textAlign = 'center';
-      div.style.cursor = 'pointer';
-      div.style.fontSize = '18px';
-      div.title = '現在地に戻る';
-      div.innerHTML = '🎯';
+    const locationButton = document.createElement("div");
+    locationButton.style.backgroundColor = "white";
+    locationButton.style.borderRadius = "4px";
+    locationButton.style.cursor = "pointer";
+    locationButton.style.width = "40px";
+    locationButton.style.height = "40px";
+    locationButton.style.textAlign = "center";
+    locationButton.style.lineHeight = "40px";
+    locationButton.style.fontSize = "20px";
+    locationButton.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+    locationButton.style.margin = "10px";
+    locationButton.title = "現在地に戻る";
+    locationButton.innerHTML = "🎯";
 
-      div.onclick = function(e) {
-        L.DomEvent.stopPropagation(e);
-        if (currentLat && currentLng) {
-          map.flyTo([currentLat, currentLng], 16);
-          updateCurrentLocation(false);
-        } else {
-          updateCurrentLocation(false);
-        }
-      };
-      return div;
-    };
-    locateControl.addTo(map);
-
-    // 地図を長押し（スマホ）、または右クリック（PC）で一時ピンを立ててフォームを開く
-    map.on('contextmenu', function(e) {
-      if (tempMarker) { 
-        map.removeLayer(tempMarker); 
+    locationButton.addEventListener("click", () => {
+      if (currentLat && currentLng) {
+        map.setCenter({ lat: currentLat, lng: currentLng });
+        map.setZoom(16);
       }
-      // ユーザーがピンの位置を微調整できるようにドラッグ可能（draggable）に設定
-      tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
-      openForm();
+      updateCurrentLocation(false);
     });
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(locationButton);
 
     function openForm() { document.getElementById('input-form').classList.add('open'); }
     function closeForm() {
       document.getElementById('input-form').classList.remove('open');
       if (tempMarker) { 
-        map.removeLayer(tempMarker); 
+        tempMarker.setMap(null);
         tempMarker = null; 
       }
     }
 
     function openSettings() {
       document.getElementById('input-nickname').value = myNickname;
-      document.getElementById('input-group').value = myGroupId;
+      document.getElementById('input-groups').value = myGroupsInput;
+      
+      const selectEl = document.getElementById('select-active-group');
+      selectEl.innerHTML = '';
+      myGroupsArray.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        opt.innerText = g;
+        if (g === currentActiveGroup) opt.selected = true;
+        selectEl.appendChild(opt);
+      });
+
       document.getElementById('settings-modal').classList.add('open');
     }
     function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
@@ -1004,9 +1105,16 @@
     
     function saveSettings() {
       myNickname = document.getElementById('input-nickname').value || 'ゲスト';
-      myGroupId = document.getElementById('input-group').value || 'free';
+      myGroupsInput = document.getElementById('input-groups').value || 'free';
+      myGroupsArray = myGroupsInput.split(',').map(g => g.trim()).filter(Boolean);
+      if (myGroupsArray.length === 0) myGroupsArray = ['free'];
+      
+      currentActiveGroup = document.getElementById('select-active-group').value || myGroupsArray[0];
+
       localStorage.setItem('user_nickname', myNickname);
-      localStorage.setItem('user_group', myGroupId);
+      localStorage.setItem('user_groups', myGroupsInput);
+      localStorage.setItem('user_active_group', currentActiveGroup);
+
       updateProfileUI();
       closeSettings();
       setupRealtimeListeners();
