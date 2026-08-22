@@ -3,877 +3,1015 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
+  
   <title>トイレマップ ー みんなで世界のトイレを見つけて投稿しよう</title>
   <meta name="description" content="世界中の公衆トイレや利用可能なトイレを簡単に検索・投稿できるシェアリングアプリです。近くのトイレを今すぐ見つけよう！">
+  <meta name="keywords" content="トイレ,トイレマップ,多目的トイレ,オムツ台,24時間トイレ,現在地検索">
   <meta name="theme-color" content="#007bff">
 
-  <!-- PWA -->
+  <meta property="og:title" content="トイレマップ ー みんなで世界のトイレを見つけて投稿しよう">
+  <meta property="og:description" content="世界中の公衆トイレや利用可能なトイレを簡単に検索・投稿できるシェアリングアプリです。近くのトイレを今すぐ見つけよう！">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://toilet-app-black.vercel.app">
+
+  <!-- PWA 対応設定 -->
   <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22%E3%83%88%E3%82%A4%E3%83%AC%E3%83%9E%E3%83%83%E3%83%97%22,%22short_name%22:%22%E3%83%88%E3%82%A4%E3%83%AC%E3%83%9E%E3%83%83%E3%83%97%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%23ffffff%22,%22theme_color%22:%22%23007bff%22}">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="トイレマップ">
+  
+  <!-- Global site tag (gtag.js) - Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9TQVXQ357D"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-9TQVXQ357D');
+  </script>
 
-  <!-- OpenStreetMap / Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIINfQ3A7hQ6nZ0gk4L2hY0v8sQY1kQ5vY=" crossorigin="">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK (v9 compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
   <style>
-    body { margin:0; padding:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:#f4f4f4; display:flex; flex-direction:column; height:100vh; }
-    #header-settings { background:#333; color:white; padding:10px 15px; font-size:13px; display:flex; justify-content:space-between; align-items:center; z-index:1001; }
-    .settings-btn { background:#555; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; }
-    #search-location-bar { background:#007bff; padding:8px 12px; display:flex; gap:8px; z-index:1001; }
-    .loc-input { flex:1; padding:8px 12px; border:none; border-radius:20px; font-size:13px; outline:none; }
-    .loc-btn { background:#0056b3; color:white; border:none; padding:0 15px; border-radius:20px; font-size:13px; font-weight:bold; cursor:pointer; }
-    #filter-bar { background:#fff; padding:8px 12px; border-bottom:1px solid #ddd; display:flex; gap:8px; overflow-x:auto; z-index:1000; white-space:nowrap; }
-    .filter-chip { background:#f0f0f0; border:1px solid #ccc; padding:4px 10px; border-radius:16px; font-size:12px; cursor:pointer; user-select:none; }
-    .filter-chip.active { background:#007bff; color:white; border-color:#007bff; font-weight:bold; }
-    #content-area { flex:1; position:relative; overflow:hidden; }
-    #map { height:100%; width:100%; position:absolute; top:0; left:0; z-index:1; }
-    #list-view { height:100%; width:100%; position:absolute; top:0; left:0; background:#f4f4f4; z-index:2; display:none; overflow-y:auto; padding-bottom:70px; }
-    .ad-container-banner { background:#e9ecef; border-top:1px solid #ccc; text-align:center; padding:5px; font-size:10px; color:#777; z-index:1001; min-height:50px; display:flex; flex-direction:column; justify-content:center; align-items:center; }
-    .ad-container-card { background:#fff3cd; border:1px dashed #ffebaa; margin:10px 15px; padding:15px; border-radius:8px; text-align:center; color:#856404; font-size:12px; }
-    .ad-link { color:#856404; font-weight:bold; text-decoration:underline; display:block; margin-top:5px; }
-    #bottom-nav { height:55px; background:white; border-top:1px solid #ccc; display:flex; justify-content:space-around; align-items:center; z-index:1001; user-select:none; }
-    .nav-btn { flex:1; text-align:center; padding:8px; color:#888; font-size:13px; cursor:pointer; }
-    .nav-btn.active { color:#007bff; font-weight:bold; }
-    .controls-area { background:white; padding:12px 15px; border-bottom:1px solid #ddd; position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; }
-    .search-input { flex:1; padding:8px; border:1px solid #ccc; border-radius:4px; }
-    .sort-select { padding:8px; border:1px solid #ccc; border-radius:4px; background:white; }
-    .btn-bulk-delete { padding:8px 10px; background:#dc3545; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px; }
-    .list-item { background:white; margin:10px 15px; padding:15px; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
-    .list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
-    .list-stars { color:#ffca08; font-size:16px; }
-    .list-badge { font-size:11px; padding:2px 6px; border-radius:4px; font-weight:bold; }
-    .badge-group { background:#e6f4ea; color:#137333; }
-    .badge-public { background:#fce8e6; color:#c5221f; }
-    .badge-private { background:#f3e8ff; color:#6f42c1; }
-    .distance-tag { font-size:11px; color:#007bff; font-weight:bold; margin-left:auto; }
-    .tag-container { display:flex; gap:4px; flex-wrap:wrap; margin:6px 0; }
-    .feature-tag { font-size:11px; background:#e8f0fe; color:#1a73e8; padding:2px 6px; border-radius:4px; }
-    .spot-img { width:100%; max-height:180px; object-fit:cover; border-radius:6px; margin:8px 0; cursor:pointer; }
-    .list-actions { display:flex; gap:6px; margin-top:10px; }
-    .btn-action { flex:1; padding:8px 4px; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; text-align:center; }
-    .btn-map { background:#007bff; }
-    .btn-nav { background:#28a745; }
-    .btn-delete { background:#ff4444; }
-    .empty-state { text-align:center; padding:30px; color:#888; }
-    #input-form,#settings-modal,#privacy-modal,#detail-modal { position:fixed; bottom:-100%; left:0; width:100%; background:white; z-index:1002; border-top-left-radius:20px; border-top-right-radius:20px; box-shadow:0 -2px 10px rgba(0,0,0,0.2); transition:bottom .3s ease-out; padding:20px; box-sizing:border-box; max-height:85%; overflow-y:auto; }
-    #input-form.open,#settings-modal.open,#privacy-modal.open,#detail-modal.open { bottom:0; }
-    .form-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; }
-    .form-title { font-weight:bold; font-size:18px; }
-    .close-btn { background:none; border:none; font-size:24px; cursor:pointer; color:#888; }
-    .form-group { margin-bottom:15px; }
-    label { display:block; margin-bottom:5px; font-weight:bold; font-size:14px; color:#333; }
-    .checkbox-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .checkbox-item { font-size:13px; display:flex; align-items:center; gap:5px; font-weight:normal; }
-    input[type="text"],textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; }
-    textarea { height:60px; resize:none; }
-    .star-rating { display:flex; flex-direction:row-reverse; justify-content:flex-end; gap:5px; }
-    .star-rating input { display:none; }
-    .star-rating label { font-size:30px; color:#ccc; cursor:pointer; margin:0; }
-    .star-rating input:checked ~ label { color:#ffca08; }
-    .privacy-group { display:flex; flex-direction:column; gap:8px; margin-top:5px; }
-    .privacy-group label { font-weight:normal; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px; }
-    .save-btn { width:100%; padding:12px; background-color:#007bff; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; }
-    #loading { position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,.85); z-index:2000; display:flex; flex-direction:column; justify-content:center; align-items:center; font-weight:bold; color:#333; }
-    .footer-links { text-align:center; padding:10px; font-size:11px; color:#666; background:#fff; border-top:1px solid #eee; }
-    .footer-links a { color:#007bff; text-decoration:none; margin:0 5px; }
-    #map,.leaflet-control,.leaflet-popup,.leaflet-popup-content-wrapper,.leaflet-popup-tip { -webkit-touch-callout:none; }
-    input[type="text"],textarea { -webkit-user-select:text; user-select:text; }
-    .leaflet-popup-content { margin:10px 12px; }
-    .leaflet-control-locate { background:white; border-radius:4px; cursor:pointer; width:40px; height:40px; text-align:center; line-height:40px; font-size:20px; box-shadow:0 2px 6px rgba(0,0,0,.3); }
+    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f4; display: flex; flex-direction: column; height: 100vh; }
+    
+    #header-settings {
+      background: #333; color: white; padding: 10px 15px; font-size: 13px;
+      display: flex; justify-content: space-between; align-items: center; z-index: 1001;
+    }
+    .settings-btn { background: #555; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+
+    #search-location-bar {
+      background: #007bff; padding: 8px 12px; display: flex; gap: 8px; z-index: 1001;
+    }
+    .loc-input { flex: 1; padding: 8px 12px; border: none; border-radius: 20px; font-size: 13px; outline: none; }
+    .loc-btn { background: #0056b3; color: white; border: none; padding: 0 15px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; }
+
+    #filter-bar {
+      background: #fff; padding: 8px 12px; border-bottom: 1px solid #ddd;
+      display: flex; gap: 8px; overflow-x: auto; z-index: 1000; white-space: nowrap;
+    }
+    .filter-chip {
+      background: #f0f0f0; border: 1px solid #ccc; padding: 4px 10px;
+      border-radius: 16px; font-size: 12px; cursor: pointer; user-select: none;
+    }
+    .filter-chip.active { background: #007bff; color: white; border-color: #007bff; font-weight: bold; }
+
+    #content-area { flex: 1; position: relative; overflow: hidden; }
+    #map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+    
+    #list-view { 
+      height: 100%; width: 100%; position: absolute; top: 0; left: 0; 
+      background: #f4f4f4; z-index: 2; display: none; overflow-y: auto; padding-bottom: 70px;
+    }
+
+    .ad-container-banner {
+      background: #e9ecef; border-top: 1px solid #ccc; text-align: center;
+      padding: 5px; font-size: 10px; color: #777; z-index: 1001; min-height: 50px;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .ad-container-card {
+      background: #fff3cd; border: 1px dashed #ffebaa; margin: 10px 15px; padding: 15px;
+      border-radius: 8px; text-align: center; color: #856404; font-size: 12px;
+    }
+    .ad-link { color: #856404; font-weight: bold; text-decoration: underline; display: block; margin-top: 5px; }
+
+    #bottom-nav {
+      height: 55px; background: white; border-top: 1px solid #ccc;
+      display: flex; justify-content: space-around; align-items: center; z-index: 1001; user-select: none;
+    }
+    .nav-btn { flex: 1; text-align: center; padding: 8px; color: #888; font-size: 13px; cursor: pointer; }
+    .nav-btn.active { color: #007bff; font-weight: bold; }
+
+    .controls-area {
+      background: white; padding: 12px 15px; border-bottom: 1px solid #ddd;
+      position: sticky; top: 0; z-index: 10; display: flex; gap: 8px; align-items: center;
+    }
+    .search-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .sort-select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: white; }
+    .btn-bulk-delete { padding: 8px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; }
+
+    .list-item {
+      background: white; margin: 10px 15px; padding: 15px;
+      border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .list-stars { color: #ffca08; font-size: 16px; }
+    .list-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+    .badge-group { background: #e6f4ea; color: #137333; }
+    .badge-public { background: #fce8e6; color: #c5221f; }
+    .badge-private { background: #f3e8ff; color: #6f42c1; }
+    .distance-tag { font-size: 11px; color: #007bff; font-weight: bold; margin-left: auto; }
+
+    .tag-container { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+    .feature-tag { font-size: 11px; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; }
+    .spot-img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; margin: 8px 0; cursor: pointer; }
+
+    .list-actions { display: flex; gap: 6px; margin-top: 10px; }
+    .btn-action { flex: 1; padding: 8px 4px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; text-align: center; }
+    .btn-map { background: #007bff; }
+    .btn-nav { background: #28a745; }
+    .btn-delete { background: #ff4444; }
+
+    .empty-state { text-align: center; padding: 30px; color: #888; }
+
+    #input-form, #settings-modal, #privacy-modal {
+      position: fixed; bottom: -100%; left: 0; width: 100%; background: white;
+      z-index: 1002; border-top-left-radius: 20px; border-top-right-radius: 20px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.2); transition: bottom 0.3s ease-out;
+      padding: 20px; box-sizing: border-box; max-height: 85%; overflow-y: auto;
+    }
+    #input-form.open, #settings-modal.open, #privacy-modal.open { bottom: 0; }
+    .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .form-title { font-weight: bold; font-size: 18px; }
+    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #888; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #333; }
+    
+    .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .checkbox-item { font-size: 13px; display: flex; align-items: center; gap: 5px; font-weight: normal; }
+
+    input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+    textarea { height: 60px; resize: none; }
+    .star-rating { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 5px; }
+    .star-rating input { display: none; }
+    .star-rating label { font-size: 30px; color: #ccc; cursor: pointer; margin: 0; }
+    .star-rating input:checked ~ label { color: #ffca08; }
+    
+    .privacy-group { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
+    .privacy-group label { font-weight: normal; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+
+    .save-btn { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    
+    #loading {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(255,255,255,0.85); z-index: 2000;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; color: #333;
+    }
+
+    .custom-pin {
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3); text-align: center; line-height: 28px; font-size: 16px;
+    }
+    .pin-group { background: #28a745; color: white; }
+    .pin-public { background: #ff9800; color: white; }
+    .pin-private { background: #6f42c1; color: white; }
+
+    .footer-links { text-align: center; padding: 10px; font-size: 11px; color: #666; background: #fff; border-top: 1px solid #eee; }
+    .footer-links a { color: #007bff; text-decoration: none; margin: 0 5px; }
+
+    /* 【長押し対策】地図、ボタン類、モーダルラベルのテキスト選択およびiOSコールアウトを防止 */
+    #map,
+    .leaflet-control-container,
+    .leaflet-control-zoom a,
+    .leaflet-bar a,
+    #header-settings,
+    #search-location-bar,
+    #filter-bar,
+    #bottom-nav,
+    .form-header,
+    .close-btn,
+    .save-btn,
+    label,
+    .star-rating label {
+      -webkit-touch-callout: none; /* iOSの長押しポップアップメニューを禁止 */
+      -webkit-user-select: none;   /* Safari / iOS Safari */
+      -moz-user-select: none;      /* Firefox */
+      -ms-user-select: none;       /* IE / Edge */
+      user-select: none;           /* 標準プロパティ */
+    }
+
+    /* 文字入力フィールドだけは通常の選択・入力を許可 */
+    input[type="text"],
+    textarea {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
   </style>
 </head>
 <body>
 
-<div id="header-settings">
-  <div>👤 <span id="disp-nickname">ゲスト</span> | 👥 グループ: <b id="disp-group">未設定</b></div>
-  <button class="settings-btn" onclick="openSettings()">設定</button>
-</div>
-
-<div id="search-location-bar">
-  <input type="text" id="input-search-location" class="loc-input" placeholder="駅名・住所で検索 (例: 新宿駅)">
-  <button class="loc-btn" onclick="searchLocation()">🔍 検索</button>
-</div>
-
-<div id="filter-bar">
-  <div class="filter-chip" data-feature="accessible" onclick="toggleFilter(this)">♿ 多目的</div>
-  <div class="filter-chip" data-feature="baby" onclick="toggleFilter(this)">👶 オムツ台</div>
-  <div class="filter-chip" data-feature="washlet" onclick="toggleFilter(this)">🚽 温水洗浄便座</div>
-  <div class="filter-chip" data-feature="open24h" onclick="toggleFilter(this)">⏰ 24時間</div>
-  <div class="filter-chip" data-feature="facility" onclick="toggleFilter(this)">🏪 施設/コンビニ</div>
-  <div class="filter-chip" data-feature="privateOnly" onclick="toggleFilter(this)">🔒 自分のみ</div>
-</div>
-
-<div id="loading"><div id="loading-text">認証・接続中...</div></div>
-
-<div id="content-area">
-  <div id="map"></div>
-
-  <div id="list-view">
-    <div class="controls-area">
-      <input type="text" id="search-box" class="search-input" placeholder="キーワード検索..." onkeyup="renderList()">
-      <select id="sort-box" class="sort-select" onchange="renderList()">
-        <option value="newest">新着順</option>
-        <option value="highest">評価順</option>
-        <option value="nearest">距離が近い順</option>
-      </select>
-      <button class="btn-bulk-delete" onclick="deleteSelectedSpots()">選択削除</button>
+  <!-- ヘッダー設定バー -->
+  <div id="header-settings">
+    <div>
+      👤 <span id="disp-nickname">ゲスト</span> 
+      | 👥 グループ: <b id="disp-group">未設定</b>
     </div>
-    <div id="list-container"></div>
-    <div class="footer-links">
-      <a href="#" onclick="openPrivacyModal();return false;">プライバシーポリシー</a> |
-      <a href="#" onclick="openPrivacyModal();return false;">運営・お問い合わせ</a>
-    </div>
+    <button class="settings-btn" onclick="openSettings()">設定</button>
   </div>
-</div>
 
-<div class="ad-container-banner">
-  <div>スポンサー広告</div>
-  <div style="font-size:11px;color:#999;">[ここにGoogle AdSenseの広告が表示されます]</div>
-</div>
+  <!-- 駅名・住所検索バー -->
+  <div id="search-location-bar">
+    <input type="text" id="input-search-location" class="loc-input" placeholder="駅名・住所で検索 (例: 新宿駅)">
+    <button class="loc-btn" onclick="searchLocation()">🔍 検索</button>
+  </div>
 
-<div id="bottom-nav">
-  <div class="nav-btn active" id="nav-map" onclick="switchTab('map')">🗺️ マップ</div>
-  <div class="nav-btn" id="nav-list" onclick="switchTab('list')">📋 みんなの記録</div>
-</div>
+  <!-- 絞り込みフィルターバー -->
+  <div id="filter-bar">
+    <div class="filter-chip" data-feature="accessible" onclick="toggleFilter(this)">♿ 多目的</div>
+    <div class="filter-chip" data-feature="baby" onclick="toggleFilter(this)">👶 オムツ台</div>
+    <div class="filter-chip" data-feature="washlet" onclick="toggleFilter(this)">🚽 温水洗浄便座</div>
+    <div class="filter-chip" data-feature="open24h" onclick="toggleFilter(this)">⏰ 24時間</div>
+    <div class="filter-chip" data-feature="facility" onclick="toggleFilter(this)">🏪 施設/コンビニ</div>
+    <div class="filter-chip" data-feature="privateOnly" onclick="toggleFilter(this)">🔒 自分のみ</div>
+  </div>
+  
+  <div id="loading">
+    <div id="loading-text">認証・接続中...</div>
+  </div>
 
-<div id="input-form">
-  <div class="form-header"><span class="form-title">トイレを記録</span><button class="close-btn" onclick="closeForm()">×</button></div>
-  <div class="form-group">
-    <label>公開範囲</label>
-    <div class="privacy-group">
-      <label><input type="radio" name="privacy" value="group" checked> 👥 グループのみ共有</label>
-      <label><input type="radio" name="privacy" value="public"> 🌐 全体公開（みんなで共有）</label>
-      <label><input type="radio" name="privacy" value="private"> 🔒 自分のみ（クラウド非公開保存）</label>
+  <div id="content-area">
+    <div id="map"></div>
+    
+    <div id="list-view">
+      <div class="controls-area">
+        <input type="text" id="search-box" class="search-input" placeholder="キーワード検索..." onkeyup="renderList()">
+        <select id="sort-box" class="sort-select" onchange="renderList()">
+          <option value="newest">新着順</option>
+          <option value="highest">評価順</option>
+          <option value="nearest">距離が近い順</option>
+        </select>
+        <button class="btn-bulk-delete" onclick="deleteSelectedSpots()">選択削除</button>
+      </div>
+      <div id="list-container"></div>
+      
+      <div class="footer-links">
+        <a href="#" onclick="openPrivacyModal()">プライバシーポリシー</a> | 
+        <a href="#" onclick="openPrivacyModal()">運営・お問い合わせ</a>
+      </div>
     </div>
   </div>
-  <div class="form-group"><label>写真の添付（自動軽量化されます）</label><input type="file" id="file-photo" accept="image/*" style="font-size:12px;"></div>
-  <div class="form-group">
-    <label>設備情報（複数選択可）</label>
-    <div class="checkbox-grid">
-      <label class="checkbox-item"><input type="checkbox" id="chk-accessible"> ♿ 多目的トイレ</label>
-      <label class="checkbox-item"><input type="checkbox" id="chk-baby"> 👶 オムツ交換台</label>
-      <label class="checkbox-item"><input type="checkbox" id="chk-washlet"> 🚽 温水洗浄便座</label>
-      <label class="checkbox-item"><input type="checkbox" id="chk-open24h"> ⏰ 24時間利用可</label>
-      <label class="checkbox-item"><input type="checkbox" id="chk-facility"> 🏪 コンビニ/施設内</label>
+
+  <!-- 固定バナー広告枠 -->
+  <div class="ad-container-banner">
+    <div>スポンサー広告</div>
+    <div style="font-size: 11px; color: #999;">[ここにGoogle AdSenseの広告が表示されます]</div>
+  </div>
+
+  <div id="bottom-nav">
+    <div class="nav-btn active" id="nav-map" onclick="switchTab('map')">🗺️ マップ</div>
+    <div class="nav-btn" id="nav-list" onclick="switchTab('list')">📋 みんなの記録</div>
+  </div>
+
+  <!-- 投稿フォーム -->
+  <div id="input-form">
+    <div class="form-header">
+      <span class="form-title">トイレを記録</span>
+      <button class="close-btn" onclick="closeForm()">×</button>
+    </div>
+    <div class="form-group">
+      <label>公開範囲</label>
+      <div class="privacy-group">
+        <label><input type="radio" name="privacy" value="group" checked> 👥 グループのみ共有</label>
+        <label><input type="radio" name="privacy" value="public"> 🌐 全体公開（みんなで共有）</label>
+        <label><input type="radio" name="privacy" value="private"> 🔒 自分のみ（クラウド非公開保存）</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>写真の添付（自動軽量化されます）</label>
+      <input type="file" id="file-photo" accept="image/*" style="font-size:12px;">
+    </div>
+    <div class="form-group">
+      <label>設備情報（複数選択可）</label>
+      <div class="checkbox-grid">
+        <label class="checkbox-item"><input type="checkbox" id="chk-accessible"> ♿ 多目的トイレ</label>
+        <label class="checkbox-item"><input type="checkbox" id="chk-baby"> 👶 オムツ交換台</label>
+        <label class="checkbox-item"><input type="checkbox" id="chk-washlet"> 🚽 温水洗浄便座</label>
+        <label class="checkbox-item"><input type="checkbox" id="chk-open24h"> ⏰ 24時間利用可</label>
+        <label class="checkbox-item"><input type="checkbox" id="chk-facility"> 🏪 コンビニ/施設内</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>評価（星1〜5）</label>
+      <div class="star-rating">
+        <input type="radio" id="star5" name="rating" value="5"><label for="star5">★</label>
+        <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
+        <input type="radio" id="star3" name="rating" value="3"><label for="star3">★</label>
+        <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
+        <input type="radio" id="star1" name="rating" value="1"><label for="star1">★</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>コメント</label>
+      <textarea id="toilet-comment" placeholder="例：清潔、トイレットペーパー完備"></textarea>
+    </div>
+    <button class="save-btn" onclick="saveData()">保存する</button>
+  </div>
+
+  <!-- ユーザー設定モーダル -->
+  <div id="settings-modal">
+    <div class="form-header">
+      <span class="form-title">ユーザー＆グループ設定</span>
+      <button class="close-btn" onclick="closeSettings()">×</button>
+    </div>
+    <div class="form-group">
+      <label>ニックネーム</label>
+      <input type="text" id="input-nickname" placeholder="例：たろう">
+    </div>
+    <div class="form-group">
+      <label>グループID（合言葉）</label>
+      <input type="text" id="input-group" placeholder="例：tanaka-family">
+      <small style="color:#666;">同じIDを入力した友達同士で記録を共有できます。</small>
+    </div>
+    <button class="save-btn" onclick="saveSettings()">設定を保存</button>
+  </div>
+
+  <!-- プライバシーポリシーモーダル -->
+  <div id="privacy-modal">
+    <div class="form-header">
+      <span class="form-title">プライバシーポリシー</span>
+      <button class="close-btn" onclick="closePrivacyModal()">×</button>
+    </div>
+    <div style="font-size: 12px; color: #444; line-height: 1.6;">
+      <p><b>1. 情報の取得と利用</b><br>当アプリでは、ユーザーの位置情報および投稿されたコメント・写真をサービス提供の目的でのみ使用します。</p>
+      <p><b>2. 広告の配信について</b><br>当アプリでは第三者配信事業者（Google AdSense等）による広告を掲載する場合があります。</p>
+      <p><b>3. お問い合わせ</b><br>投稿の削除依頼につきましては投稿一覧画面より削除を行っていただくか、管理者へご連絡ください。</p>
     </div>
   </div>
-  <div class="form-group">
-    <label>評価（星1〜5）</label>
-    <div class="star-rating">
-      <input type="radio" id="star5" name="rating" value="5"><label for="star5">★</label>
-      <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
-      <input type="radio" id="star3" name="rating" value="3"><label for="star3">★</label>
-      <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
-      <input type="radio" id="star1" name="rating" value="1"><label for="star1">★</label>
-    </div>
-  </div>
-  <div class="form-group"><label>コメント</label><textarea id="toilet-comment" placeholder="例：清潔、トイレットペーパー完備"></textarea></div>
-  <button class="save-btn" onclick="saveData()">保存する</button>
-</div>
 
-<div id="detail-modal">
-  <div class="form-header"><span class="form-title">トイレの詳細・追加評価</span><button class="close-btn" onclick="closeDetailModal()">×</button></div>
-  <div id="detail-content-area" style="font-size:13px;margin-bottom:15px;"></div>
-  <hr style="border:0;border-top:1px solid #ddd;margin:15px 0;">
-  <h4 style="margin:0 0 10px;font-size:14px;">このトイレに評価・コメントを追加する</h4>
-  <div class="form-group">
-    <label>追加評価（星1〜5）</label>
-    <div class="star-rating">
-      <input type="radio" id="rstar5" name="review-rating" value="5"><label for="rstar5">★</label>
-      <input type="radio" id="rstar4" name="review-rating" value="4"><label for="rstar4">★</label>
-      <input type="radio" id="rstar3" name="review-rating" value="3" checked><label for="rstar3">★</label>
-      <input type="radio" id="rstar2" name="review-rating" value="2"><label for="rstar2">★</label>
-      <input type="radio" id="rstar1" name="review-rating" value="1"><label for="rstar1">★</label>
-    </div>
-  </div>
-  <div class="form-group"><label>コメント</label><textarea id="review-comment" placeholder="追加の感想や今の状態を入力..."></textarea></div>
-  <button class="save-btn" onclick="submitReview()">レビューを追加する</button>
-</div>
+  <script>
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
+      authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
+      projectId: "my-toilet-app-3c2c3",
+      storageBucket: "my-toilet-app-3c2c3.firebasestorage.app",
+      messagingSenderId: "322835199622",
+      appId: "1:322835199622:web:7e43f787b97a003d408307"
+    };
 
-<div id="settings-modal">
-  <div class="form-header"><span class="form-title">ユーザー＆グループ設定</span><button class="close-btn" onclick="closeSettings()">×</button></div>
-  <div class="form-group"><label>ニックネーム</label><input type="text" id="input-nickname" placeholder="例：たろう"></div>
-  <div class="form-group">
-    <label>所属グループ（カンマ区切りで複数設定可）</label>
-    <input type="text" id="input-groups" placeholder="例：family, work, friends">
-    <small style="color:#666;">複数のグループIDをカンマ(,)区切りで登録できます。投稿時に選択可能になります。</small>
-  </div>
-  <div class="form-group"><label>メイン（閲覧・投稿先）グループの選択</label><select id="select-active-group" class="sort-select" style="width:100%;"></select></div>
-  <button class="save-btn" onclick="saveSettings()">設定を保存</button>
-</div>
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
 
-<div id="privacy-modal">
-  <div class="form-header"><span class="form-title">プライバシーポリシー</span><button class="close-btn" onclick="closePrivacyModal()">×</button></div>
-  <div style="font-size:12px;color:#444;line-height:1.6;">
-    <p><b>1. 情報の取得と利用</b><br>当アプリでは、ユーザーの位置情報および投稿されたコメント・写真をサービス提供の目的でのみ使用します。</p>
-    <p><b>2. 広告の配信について</b><br>当アプリでは第三者配信事業者（Google AdSense等）による広告を掲載する場合があります。</p>
-    <p><b>3. お問い合わせ</b><br>投稿の削除依頼につきましては投稿一覧画面より削除を行っていただくか、管理者へご連絡ください。</p>
-  </div>
-</div>
+    let currentUid = null;
+    let myNickname = localStorage.getItem('user_nickname') || 'ゲスト';
+    let myGroupId = localStorage.getItem('user_group') || 'free';
+    let activeFilters = [];
 
-<script>
-  // Firebase設定
-  const firebaseConfig = {
-    apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
-    authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
-    projectId: "my-toilet-app-3c2c3",
-    storageBucket: "my-toilet-app-3c2c3.firebasestorage.app",
-    messagingSenderId: "322835199622",
-    appId: "1:322835199622:web:7e43f787b97a003d408307"
-  };
+    // XSS 対策エスケープ関数
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-  const storage = firebase.storage();
+    function updateProfileUI() {
+      document.getElementById('disp-nickname').innerText = myNickname;
+      document.getElementById('disp-group').innerText = myGroupId;
+    }
+    updateProfileUI();
 
-  let currentUid = null;
-  let myNickname = localStorage.getItem('user_nickname') || 'ゲスト';
-  let myGroupsInput = localStorage.getItem('user_groups') || 'free';
-  let myGroupsArray = myGroupsInput.split(',').map(g => g.trim()).filter(Boolean);
-  let currentActiveGroup = localStorage.getItem('user_active_group') || myGroupsArray[0] || 'free';
-  let activeFilters = [];
+    // デフォルト位置：東京駅
+    const DEFAULT_LAT = 35.6812;
+    const DEFAULT_LNG = 139.7671;
+    var map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LNG], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
 
-  let map = null;
-  let osmMarkers = {};
-  let tempMarker = null;
-  let currentMarker = null;
-  let allSpots = [];
-  let currentLat = null;
-  let currentLng = null;
-  let unsubscribers = [];
-  let selectedSpotForReview = null;
+    var tempMarker = null;
+    var allSpots = [];
+    var activeMarkers = {};
+    var currentLat = null;
+    var currentLng = null;
+    var currentMarker = null;
+    var unsubscribers = [];
 
-  const DEFAULT_LAT = 35.6812;
-  const DEFAULT_LNG = 139.7671;
+    // 匿名認証とリアルタイム同期の初期化
+    auth.signInAnonymously().catch(function(error) {
+      alert('匿名認証に失敗しました: ' + error.message);
+    });
 
-  function escapeHTML(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-  }
+    auth.onAuthStateChanged(function(user) {
+      if (user) {
+        currentUid = user.uid;
+        setupRealtimeListeners();
+      }
+    });
 
-  function updateProfileUI() {
-    document.getElementById('disp-nickname').innerText = myNickname;
-    document.getElementById('disp-group').innerText = currentActiveGroup;
-  }
-  updateProfileUI();
+    // アイコン生成
+    function createIcon(privacyType) {
+      var className = 'custom-pin pin-public';
+      var iconSymbol = '🚽';
+      if (privacyType === 'private') {
+        className = 'custom-pin pin-private';
+        iconSymbol = '🔒';
+      } else if (privacyType === 'group') {
+        className = 'custom-pin pin-group';
+      }
+      return L.divIcon({
+        className: className,
+        html: iconSymbol,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+        popupAnchor: [0, -15]
+      });
+    }
 
-  // OpenStreetMap / Leaflet 初期化
-  function initMap() {
-    map = L.map('map', {
-      zoomControl: true,
-      attributionControl: true
-    }).setView([DEFAULT_LAT, DEFAULT_LNG], 12);
+    function openNavigation(lat, lng) {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      window.open(url, '_blank');
+    }
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
-    }).addTo(map);
+    function calculateDistanceStr(lat2, lng2) {
+      if (!currentLat || !currentLng) return null;
+      var p1 = L.latLng(currentLat, currentLng);
+      var p2 = L.latLng(lat2, lng2);
+      var meters = p1.distanceTo(p2);
+      return meters < 1000 ? `${Math.round(meters)}m` : `${(meters / 1000).toFixed(1)}km`;
+    }
 
-    // 右クリックで投稿位置を指定（PC）
+    function getDistanceMeters(lat2, lng2) {
+      if (!currentLat || !currentLng) return Infinity;
+      return L.latLng(currentLat, currentLng).distanceTo(L.latLng(lat2, lng2));
+    }
+
+    async function searchLocation() {
+      const query = document.getElementById('input-search-location').value;
+      if (!query) return;
+
+      document.getElementById('loading-text').innerText = '場所を検索中...';
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        // ※ Nominatimの利用規約に沿うため、実運用時はご自身の連絡先メールアドレスをご指定ください
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&email=info@toilet-app.com`);
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lon = parseFloat(data[0].lon);
+          map.setView([lat, lon], 16);
+        } else {
+          alert('該当する場所が見つかりませんでした。');
+        }
+      } catch (e) {
+        alert('検索処理でエラーが発生しました。');
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = '接続中...';
+      }
+    }
+
+    function compressImage(file, maxWidth = 1024, quality = 0.75) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = event => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+          };
+          img.onerror = error => reject(error);
+        };
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    // 各ルール階層（全体 / グループ / 自分のみ）からデータ受信
+    function setupRealtimeListeners() {
+      unsubscribers.forEach(unsub => unsub());
+      unsubscribers = [];
+
+      let publicSpots = [];
+      let groupSpots = [];
+      let privateSpots = [];
+
+      const updateAll = () => {
+        allSpots = [...publicSpots, ...groupSpots, ...privateSpots];
+        refreshMapAndList();
+        document.getElementById('loading').style.display = 'none';
+      };
+
+      // ① 全体
+      unsubscribers.push(
+        db.collection('toiletSpots').onSnapshot(snap => {
+          publicSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'public', ...doc.data() }));
+          updateAll();
+        }, err => console.error(err))
+      );
+
+      // ② グループ
+      if (myGroupId) {
+        unsubscribers.push(
+          db.collection('groups').doc(myGroupId).collection('toiletSpots').onSnapshot(snap => {
+            groupSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', ...doc.data() }));
+            updateAll();
+          }, err => console.error(err))
+        );
+      }
+
+      // ③ 自分のみ
+      if (currentUid) {
+        unsubscribers.push(
+          db.collection('users').doc(currentUid).collection('toiletSpots').onSnapshot(snap => {
+            privateSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'private', ...doc.data() }));
+            updateAll();
+          }, err => console.error(err))
+        );
+      }
+    }
+
+    function refreshMapAndList() {
+      // 既存の全ピンを一度地図から除去
+      Object.keys(activeMarkers).forEach(function(key) { 
+        if (activeMarkers[key]) {
+          map.removeLayer(activeMarkers[key]); 
+        }
+      });
+      activeMarkers = {};
+
+      allSpots.forEach(function(spot) {
+        var matchesFilter = activeFilters.every(function(f) {
+          if (f === 'privateOnly') return spot.privacy === 'private';
+          return spot.features && spot.features[f] === true;
+        });
+        if (matchesFilter) { 
+          addMarkerToMap(spot); 
+        }
+      });
+
+      if (document.getElementById('list-view').style.display === 'block') { renderList(); }
+    }
+
+    function toggleFilter(el) {
+      var feature = el.getAttribute('data-feature');
+      if (el.classList.contains('active')) {
+        el.classList.remove('active');
+        activeFilters = activeFilters.filter(f => f !== feature);
+      } else {
+        el.classList.add('active');
+        activeFilters.push(feature);
+      }
+      refreshMapAndList();
+    }
+
+    function renderFeatureTags(features) {
+      if (!features) return '';
+      var html = '<div class="tag-container">';
+      if (features.accessible) html += '<span class="feature-tag">♿ 多目的</span>';
+      if (features.baby) html += '<span class="feature-tag">👶 オムツ台</span>';
+      if (features.washlet) html += '<span class="feature-tag">🚽 洗浄便座</span>';
+      if (features.open24h) html += '<span class="feature-tag">⏰ 24時間</span>';
+      if (features.facility) html += '<span class="feature-tag">🏪 施設内</span>';
+      html += '</div>';
+      return html;
+    }
+
+    function addMarkerToMap(spot) {
+      if (!spot.lat || !spot.lng) return;
+
+      var stars = '★'.repeat(spot.rating || 3) + '☆'.repeat(5 - (spot.rating || 3));
+      var badgeHtml = '';
+      if (spot.privacy === 'private') {
+        badgeHtml = '<span style="color:#6f42c1;">[🔒自分のみ]</span>';
+      } else if (spot.privacy === 'group') {
+        badgeHtml = '<span style="color:green;">[👥グループ]</span>';
+      } else {
+        badgeHtml = '<span style="color:orange;">[🌐全体]</span>';
+      }
+
+      var tagsHtml = renderFeatureTags(spot.features);
+      var safeImgUrl = escapeHTML(spot.imageUrl);
+      var imgHtml = safeImgUrl ? `<img src="${safeImgUrl}" class="spot-img" onclick="window.open('${safeImgUrl}')">` : '';
+      var distStr = calculateDistanceStr(spot.lat, spot.lng);
+      var distHtml = distStr ? `<div style="font-size:11px; color:#007bff; font-weight:bold; margin-bottom:4px;">📍 現在地から ${distStr}</div>` : '';
+
+      var isOwner = spot.userId === currentUid;
+      var deleteBtnHtml = isOwner ? 
+        `<button style="flex:1; padding:5px 2px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
+          onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
+
+      var popupContent = `
+        <div style="font-size:13px; min-width:170px; max-width:210px;">
+          ${badgeHtml} <b>${escapeHTML(spot.userName || '名無し')}</b><br>
+          <span style="color:#ffca08; font-size:14px;">${stars}</span><br>
+          ${distHtml}
+          ${tagsHtml}
+          ${imgHtml}
+          <b>${escapeHTML(spot.comment || 'コメントなし')}</b><br><br>
+          <div style="display:flex; gap:4px;">
+            <button style="flex:1; padding:5px 2px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
+              onclick="openNavigation(${spot.lat}, ${spot.lng})">🧭 ナビ</button>
+            ${deleteBtnHtml}
+          </div>
+        </div>
+      `;
+
+      var marker = L.marker([spot.lat, spot.lng], { 
+        icon: createIcon(spot.privacy) 
+      }).bindPopup(popupContent);
+
+      marker.addTo(map);
+      activeMarkers[spot.docId] = marker;
+    }
+
+    async function saveData() {
+      if (!currentUid) {
+        alert('認証処理中のため少々お待ちください。');
+        return;
+      }
+
+      var fileInput = document.getElementById('file-photo');
+      var rawFile = fileInput.files[0];
+      var rating = document.querySelector('input[name="rating"]:checked')?.value || 3;
+      var comment = document.getElementById('toilet-comment').value;
+      var privacy = document.querySelector('input[name="privacy"]:checked').value;
+
+      if (!tempMarker) return;
+
+      document.getElementById('loading-text').innerText = '保存中...';
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        const lat = tempMarker.getLatLng().lat;
+        const lng = tempMarker.getLatLng().lng;
+        const features = {
+          accessible: document.getElementById('chk-accessible').checked,
+          baby: document.getElementById('chk-baby').checked,
+          washlet: document.getElementById('chk-washlet').checked,
+          open24h: document.getElementById('chk-open24h').checked,
+          facility: document.getElementById('chk-facility').checked
+        };
+
+        let imageUrl = '';
+        let imagePath = ''; 
+        if (rawFile) {
+          document.getElementById('loading-text').innerText = '画像を圧縮・アップロード中...';
+          const compressedBlob = await compressImage(rawFile, 1024, 0.75);
+          imagePath = `toilet_photos/${currentUid}/${Date.now()}.jpg`;
+          const storageRef = storage.ref(imagePath);
+          const snapshot = await storageRef.put(compressedBlob);
+          imageUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        var newSpot = {
+          lat: lat,
+          lng: lng,
+          rating: parseInt(rating),
+          comment: comment,
+          privacy: privacy,
+          userName: myNickname,
+          userId: currentUid,
+          imageUrl: imageUrl,
+          imagePath: imagePath,
+          features: features,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        // パス切り替え保存
+        if (privacy === 'public') {
+          await db.collection('toiletSpots').add(newSpot);
+        } else if (privacy === 'group') {
+          await db.collection('groups').doc(myGroupId).collection('toiletSpots').add(newSpot);
+        } else if (privacy === 'private') {
+          await db.collection('users').doc(currentUid).collection('toiletSpots').add(newSpot);
+        }
+
+        closeForm();
+        resetFormInputs();
+      } catch (error) {
+        alert('保存に失敗しました: ' + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = '接続中...';
+      }
+    }
+
+    function resetFormInputs() {
+      document.getElementById('toilet-comment').value = '';
+      document.getElementById('file-photo').value = '';
+      document.getElementById('chk-accessible').checked = false;
+      document.getElementById('chk-baby').checked = false;
+      document.getElementById('chk-washlet').checked = false;
+      document.getElementById('chk-open24h').checked = false;
+      document.getElementById('chk-facility').checked = false;
+    }
+
+    function getDocRef(docId, pathType) {
+      if (pathType === 'public') {
+        return db.collection('toiletSpots').doc(docId);
+      } else if (pathType === 'group') {
+        return db.collection('groups').doc(myGroupId).collection('toiletSpots').doc(docId);
+      } else if (pathType === 'private') {
+        return db.collection('users').doc(currentUid).collection('toiletSpots').doc(docId);
+      }
+      return null;
+    }
+
+    async function deleteSpot(docId, pathType) {
+      if (confirm('この記録を削除しますか？')) {
+        document.getElementById('loading-text').innerText = '削除中...';
+        document.getElementById('loading').style.display = 'flex';
+        try {
+          const docRef = getDocRef(docId, pathType);
+          if (!docRef) throw new Error('参照の取得に失敗しました。');
+
+          const docSnap = await docRef.get();
+          if (docSnap.exists) {
+            const data = docSnap.data();
+            if (data.userId !== currentUid) {
+              alert('本人の投稿のみ削除できます。');
+              return;
+            }
+            if (data.imagePath) {
+              try { await storage.ref(data.imagePath).delete(); } catch (e) {}
+            }
+            await docRef.delete();
+          }
+        } catch (error) {
+          alert('削除に失敗しました: ' + error.message);
+        } finally {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('loading-text').innerText = '接続中...';
+        }
+      }
+    }
+
+    async function deleteSelectedSpots() {
+      const checkboxes = document.querySelectorAll('.spot-checkbox:checked');
+      if (checkboxes.length === 0) {
+        alert('削除したい項目にチェックを入れてください。');
+        return;
+      }
+
+      if (!confirm(`選択した ${checkboxes.length} 件の記録を削除しますか？`)) return;
+
+      document.getElementById('loading-text').innerText = '一括削除中...';
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        for (const cb of checkboxes) {
+          const docId = cb.value;
+          const spot = allSpots.find(s => s.docId === docId);
+          if (spot && spot.userId === currentUid) {
+            const docRef = getDocRef(docId, spot.pathType);
+            if (docRef) {
+              if (spot.imagePath) {
+                try { await storage.ref(spot.imagePath).delete(); } catch (e) {}
+              }
+              await docRef.delete();
+            }
+          }
+        }
+      } catch (error) {
+        alert('一括削除処理に一部失敗しました: ' + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = '接続中...';
+      }
+    }
+
+    function switchTab(tabName) {
+      if (tabName === 'map') {
+        document.getElementById('map').style.display = 'block';
+        document.getElementById('list-view').style.display = 'none';
+        document.getElementById('nav-map').classList.add('active');
+        document.getElementById('nav-list').classList.remove('active');
+        map.invalidateSize();
+      } else {
+        document.getElementById('map').style.display = 'none';
+        document.getElementById('list-view').style.display = 'block';
+        document.getElementById('nav-list').classList.add('active');
+        document.getElementById('nav-map').classList.remove('active');
+        renderList();
+      }
+    }
+
+    function renderList() {
+      var container = document.getElementById('list-container');
+      var searchQuery = document.getElementById('search-box').value.toLowerCase();
+      var sortMethod = document.getElementById('sort-box').value;
+
+      var filtered = allSpots.filter(function(spot) {
+        var matchesText = (spot.comment || '').toLowerCase().includes(searchQuery) ||
+                          (spot.userName || '').toLowerCase().includes(searchQuery);
+        var matchesFilter = activeFilters.every(function(f) {
+          if (f === 'privateOnly') return spot.privacy === 'private';
+          return spot.features && spot.features[f] === true;
+        });
+        return matchesText && matchesFilter;
+      });
+
+      filtered.sort(function(a, b) {
+        if (sortMethod === 'highest') {
+          return (b.rating || 0) - (a.rating || 0);
+        } else if (sortMethod === 'nearest') {
+          return getDistanceMeters(a.lat, a.lng) - getDistanceMeters(b.lat, b.lng);
+        } else {
+          var getTime = function(item) {
+            if (!item.createdAt) return 0;
+            if (typeof item.createdAt === 'string') return new Date(item.createdAt).getTime();
+            if (item.createdAt.seconds) return item.createdAt.seconds * 1000;
+            return 0;
+          };
+          return getTime(b) - getTime(a);
+        }
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">表示できる記録がありません。</div>';
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(spot, index) {
+        var stars = '★'.repeat(spot.rating || 3) + '☆'.repeat(5 - (spot.rating || 3));
+        var badgeClass = 'badge-public';
+        var badgeText = '🌐 全体共有';
+        
+        if (spot.privacy === 'private') {
+          badgeClass = 'badge-private';
+          badgeText = '🔒 自分のみ';
+        } else if (spot.privacy === 'group') {
+          badgeClass = 'badge-group';
+          badgeText = '👥 グループ';
+        }
+
+        var tagsHtml = renderFeatureTags(spot.features);
+        var safeImgUrl = escapeHTML(spot.imageUrl);
+        var imgHtml = safeImgUrl ? `<img src="${safeImgUrl}" class="spot-img" onclick="window.open('${safeImgUrl}')">` : '';
+        var distStr = calculateDistanceStr(spot.lat, spot.lng);
+        var distBadge = distStr ? `<span class="distance-tag">📍 約 ${distStr}</span>` : '';
+
+        var isOwner = spot.userId === currentUid;
+        var deleteBtnHtml = isOwner ? 
+          `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
+
+        if (index === 2) {
+          html += `
+            <div class="ad-container-card">
+              <b>【PR】おすすめの外出用衛生グッズ</b><br>
+              外出先のトイレでも安心！携帯用除菌ミスト＆流せるティッシュ
+              <a href="https://www.amazon.co.jp/" target="_blank" class="ad-link">Amazonで詳細を見る ↗</a>
+            </div>
+          `;
+        }
+
+        html += `
+          <div class="list-item">
+            <div class="list-header">
+              <label style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" class="spot-checkbox" value="${spot.docId}" ${!isOwner ? 'disabled' : ''} style="transform: scale(1.2);">
+                <span class="list-stars">${stars}</span>
+              </label>
+              ${distBadge}
+              <span class="list-badge ${badgeClass}">${badgeText}</span>
+            </div>
+            ${tagsHtml}
+            ${imgHtml}
+            <div class="list-comment"><b>${escapeHTML(spot.comment || 'コメントなし')}</b></div>
+            <div class="list-user">投稿者: <b>${escapeHTML(spot.userName || '名無し')}</b></div>
+            <div class="list-actions">
+              <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}')">📍 地図</button>
+              <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat}, ${spot.lng})">🧭 ナビ起動</button>
+              ${deleteBtnHtml}
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function viewOnMap(docId) {
+      switchTab('map');
+      var target = allSpots.find(function(s) { return s.docId === docId; });
+      if (target) {
+        map.setView([target.lat, target.lng], 17);
+        if (activeMarkers[docId]) { activeMarkers[docId].openPopup(); }
+      }
+    }
+
+    function updateCurrentLocation(isInitial = false) {
+      if (!navigator.geolocation) {
+        if (!isInitial) alert("お使いのブラウザは位置情報をサポートしていません。");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          currentLat = pos.coords.latitude;
+          currentLng = pos.coords.longitude;
+
+          if (currentMarker) {
+            currentMarker.setLatLng([currentLat, currentLng]);
+          } else {
+            currentMarker = L.circleMarker([currentLat, currentLng], {
+              radius: 8, fillColor: "#007bff", color: "#fff", weight: 2, fillOpacity: 0.8
+            }).addTo(map).bindPopup("現在地");
+          }
+
+          if (isInitial) {
+            map.setView([currentLat, currentLng], 15);
+          }
+          refreshMapAndList();
+        },
+        function(err) {
+          console.warn("位置情報の取得失敗:", err.message);
+          if (!isInitial) {
+            alert("現在地の取得に失敗しました。端末の位置情報設定を確認してください。");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+      );
+    }
+
+    updateCurrentLocation(true);
+
+    var locateControl = L.control({ position: 'topright' });
+    locateControl.onAdd = function(map) {
+      var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      div.style.backgroundColor = 'white';
+      div.style.width = '34px';
+      div.style.height = '34px';
+      div.style.lineHeight = '34px';
+      div.style.textAlign = 'center';
+      div.style.cursor = 'pointer';
+      div.style.fontSize = '18px';
+      div.title = '現在地に戻る';
+      div.innerHTML = '🎯';
+
+      div.onclick = function(e) {
+        L.DomEvent.stopPropagation(e);
+        if (currentLat && currentLng) {
+          map.flyTo([currentLat, currentLng], 16);
+          updateCurrentLocation(false);
+        } else {
+          updateCurrentLocation(false);
+        }
+      };
+      return div;
+    };
+    locateControl.addTo(map);
+
+    // 地図を長押し（スマホ）、または右クリック（PC）で一時ピンを立ててフォームを開く
     map.on('contextmenu', function(e) {
-      setTemporaryMarker(e.latlng);
+      if (tempMarker) { 
+        map.removeLayer(tempMarker); 
+      }
+      // ユーザーがピンの位置を微調整できるようにドラッグ可能（draggable）に設定
+      tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
       openForm();
     });
 
-    // スマホの長押しでも投稿位置を指定
-    let pressTimer = null;
-    let pressStart = null;
-
-    map.getContainer().addEventListener('touchstart', function(e) {
-      if (e.touches.length !== 1) return;
-      pressStart = { x:e.touches[0].clientX, y:e.touches[0].clientY };
-      pressTimer = setTimeout(function() {
-        const rect = map.getContainer().getBoundingClientRect();
-        const point = L.point(pressStart.x - rect.left, pressStart.y - rect.top);
-        const latlng = map.containerPointToLatLng(point);
-        setTemporaryMarker(latlng);
-        openForm();
-      }, 650);
-    }, {passive:true});
-
-    map.getContainer().addEventListener('touchmove', function(e) {
-      if (!pressStart || !e.touches.length) return;
-      const dx = e.touches[0].clientX - pressStart.x;
-      const dy = e.touches[0].clientY - pressStart.y;
-      if (Math.sqrt(dx*dx + dy*dy) > 12) {
-        clearTimeout(pressTimer);
-        pressTimer = null;
+    function openForm() { document.getElementById('input-form').classList.add('open'); }
+    function closeForm() {
+      document.getElementById('input-form').classList.remove('open');
+      if (tempMarker) { 
+        map.removeLayer(tempMarker); 
+        tempMarker = null; 
       }
-    }, {passive:true});
-
-    map.getContainer().addEventListener('touchend', function() {
-      clearTimeout(pressTimer);
-      pressTimer = null;
-      pressStart = null;
-    }, {passive:true});
-
-    // 現在地ボタン
-    const locationButton = L.control({position:'topright'});
-    locationButton.onAdd = function() {
-      const div = L.DomUtil.create('div','leaflet-control-locate');
-      div.innerHTML = '🎯';
-      div.title = '現在地に戻る';
-      L.DomEvent.disableClickPropagation(div);
-      div.addEventListener('click', function() {
-        if (currentLat !== null && currentLng !== null) {
-          map.setView([currentLat,currentLng],16);
-        }
-        updateCurrentLocation(false);
-      });
-      return div;
-    };
-    locationButton.addTo(map);
-
-    updateCurrentLocation(true);
-  }
-
-  function setTemporaryMarker(latlng) {
-    if (tempMarker) map.removeLayer(tempMarker);
-    tempMarker = L.marker(latlng, {draggable:true}).addTo(map);
-    tempMarker.bindPopup('この位置にトイレを記録します').openPopup();
-  }
-
-  function openNavigation(lat,lng) {
-    // ナビの時だけGoogle Mapsを使用
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(lat + ',' + lng)}`;
-    window.open(url,'_blank');
-  }
-
-  function getDistanceMeters(lat2,lng2) {
-    if (currentLat === null || currentLng === null) return Infinity;
-    return map.distance([currentLat,currentLng],[lat2,lng2]);
-  }
-
-  function calculateDistanceStr(lat2,lng2) {
-    const meters = getDistanceMeters(lat2,lng2);
-    if (!isFinite(meters)) return null;
-    return meters < 1000 ? `${Math.round(meters)}m` : `${(meters/1000).toFixed(1)}km`;
-  }
-
-  // OpenStreetMap Nominatimで住所・駅名検索
-  async function searchLocation() {
-    const query = document.getElementById('input-search-location').value.trim();
-    if (!query) return;
-
-    document.getElementById('loading-text').innerText = '場所を検索中...';
-    document.getElementById('loading').style.display = 'flex';
-
-    try {
-      const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q=' + encodeURIComponent(query);
-      const response = await fetch(url, {headers:{'Accept':'application/json'}});
-      if (!response.ok) throw new Error('検索サービスに接続できませんでした。');
-      const results = await response.json();
-
-      if (results.length > 0) {
-        const lat = parseFloat(results[0].lat);
-        const lon = parseFloat(results[0].lon);
-        map.setView([lat,lon],16);
-      } else {
-        alert('該当する場所が見つかりませんでした。');
-      }
-    } catch (error) {
-      console.error(error);
-      alert('場所の検索に失敗しました。時間をおいて再度お試しください。');
-    } finally {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('loading-text').innerText = '接続中...';
-    }
-  }
-
-  function compressImage(file,maxWidth=1024,quality=0.75) {
-    return new Promise((resolve,reject)=>{
-      const reader=new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload=event=>{
-        const img=new Image();
-        img.src=event.target.result;
-        img.onload=()=>{
-          let width=img.width,height=img.height;
-          if(width>maxWidth){height=Math.round(height*maxWidth/width);width=maxWidth;}
-          const canvas=document.createElement('canvas');
-          canvas.width=width;canvas.height=height;
-          const ctx=canvas.getContext('2d');
-          ctx.drawImage(img,0,0,width,height);
-          canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('画像圧縮に失敗しました。')),'image/jpeg',quality);
-        };
-        img.onerror=reject;
-      };
-      reader.onerror=reject;
-    });
-  }
-
-  function setupRealtimeListeners() {
-    unsubscribers.forEach(unsub=>unsub());
-    unsubscribers=[];
-
-    let publicSpots=[];
-    let groupSpotsMap={};
-    let privateSpots=[];
-
-    const updateAll=()=>{
-      let allGroupSpots=[];
-      Object.keys(groupSpotsMap).forEach(gKey=>{allGroupSpots=allGroupSpots.concat(groupSpotsMap[gKey]||[]);});
-      const spotMap=new Map();
-      [...publicSpots,...allGroupSpots,...privateSpots].forEach(s=>spotMap.set(s.docId + '|' + s.pathType + '|' + (s.groupName||''),s));
-      allSpots=Array.from(spotMap.values());
-      refreshMapAndList();
-      document.getElementById('loading').style.display='none';
-    };
-
-    unsubscribers.push(db.collection('toiletSpots').onSnapshot(snap=>{
-      publicSpots=snap.docs.map(doc=>({docId:doc.id,pathType:'public',...doc.data()}));
-      updateAll();
-    },err=>console.error(err)));
-
-    myGroupsArray.forEach(gId=>{
-      unsubscribers.push(db.collection('groups').doc(gId).collection('toiletSpots').onSnapshot(snap=>{
-        groupSpotsMap[gId]=snap.docs.map(doc=>({docId:doc.id,pathType:'group',groupName:gId,...doc.data()}));
-        updateAll();
-      },err=>console.error(err)));
-    });
-
-    if(currentUid){
-      unsubscribers.push(db.collection('users').doc(currentUid).collection('toiletSpots').onSnapshot(snap=>{
-        privateSpots=snap.docs.map(doc=>({docId:doc.id,pathType:'private',...doc.data()}));
-        updateAll();
-      },err=>console.error(err)));
-    }
-  }
-
-  function spotMatchesFilters(spot) {
-    return activeFilters.every(f=>{
-      if(f==='privateOnly') return spot.privacy==='private';
-      return spot.features && spot.features[f]===true;
-    });
-  }
-
-  function refreshMapAndList() {
-    Object.keys(osmMarkers).forEach(key=>{
-      if(osmMarkers[key] && osmMarkers[key].marker) map.removeLayer(osmMarkers[key].marker);
-    });
-    osmMarkers={};
-
-    allSpots.forEach(spot=>{
-      if(spotMatchesFilters(spot)) addMarkerToMap(spot);
-    });
-
-    if(document.getElementById('list-view').style.display==='block') renderList();
-  }
-
-  function toggleFilter(el) {
-    const feature=el.getAttribute('data-feature');
-    if(el.classList.contains('active')){
-      el.classList.remove('active');
-      activeFilters=activeFilters.filter(f=>f!==feature);
-    }else{
-      el.classList.add('active');
-      activeFilters.push(feature);
-    }
-    refreshMapAndList();
-  }
-
-  function renderFeatureTags(features) {
-    if(!features) return '';
-    let html='<div class="tag-container">';
-    if(features.accessible) html+='<span class="feature-tag">♿ 多目的</span>';
-    if(features.baby) html+='<span class="feature-tag">👶 オムツ台</span>';
-    if(features.washlet) html+='<span class="feature-tag">🚽 洗浄便座</span>';
-    if(features.open24h) html+='<span class="feature-tag">⏰ 24時間</span>';
-    if(features.facility) html+='<span class="feature-tag">🏪 施設内</span>';
-    html+='</div>';
-    return html;
-  }
-
-  function addMarkerToMap(spot) {
-    if(spot.lat==null || spot.lng==null) return;
-
-    const stars='★'.repeat(spot.rating||3)+'☆'.repeat(5-(spot.rating||3));
-    const badgeHtml=spot.privacy==='private'
-      ? '<span style="color:#6f42c1;">[🔒自分のみ]</span>'
-      : spot.privacy==='group'
-      ? `<span style="color:green;">[👥グループ:${escapeHTML(spot.groupName||'')}]</span>`
-      : '<span style="color:orange;">[🌐全体]</span>';
-
-    const tagsHtml=renderFeatureTags(spot.features);
-    const safeImgUrl=escapeHTML(spot.imageUrl);
-    const imgHtml=safeImgUrl ? `<img src="${safeImgUrl}" class="spot-img" onclick="window.open('${safeImgUrl}','_blank')">` : '';
-    const distStr=calculateDistanceStr(spot.lat,spot.lng);
-    const distHtml=distStr ? `<div style="font-size:11px;color:#007bff;font-weight:bold;margin-bottom:4px;">📍 現在地から ${distStr}</div>` : '';
-    const isOwner=spot.userId===currentUid;
-    const deleteBtnHtml=isOwner ? `<button style="flex:1;padding:5px 2px;background:#ff4444;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;" onclick="deleteSpot('${spot.docId}','${spot.pathType}','${escapeHTML(spot.groupName||'')}')">🗑️ 削除</button>` : '';
-
-    const contentString=`
-      <div style="font-size:13px;min-width:180px;max-width:220px;">
-        ${badgeHtml} <b>${escapeHTML(spot.userName||'名無し')}</b><br>
-        <span style="color:#ffca08;font-size:14px;">${stars}</span><br>
-        ${distHtml}
-        ${tagsHtml}
-        ${imgHtml}
-        <b>${escapeHTML(spot.comment||'コメントなし')}</b><br><br>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;">
-          <button style="flex:1;padding:5px 2px;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;" onclick="openNavigation(${spot.lat},${spot.lng})">🧭 ナビ</button>
-          <button style="flex:1;padding:5px 2px;background:#17a2b8;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;" onclick="openDetailModal('${spot.docId}','${spot.pathType}','${escapeHTML(spot.groupName||'')}')">💬 評価・追加</button>
-          ${deleteBtnHtml}
-        </div>
-      </div>`;
-
-    const marker=L.marker([spot.lat,spot.lng]).addTo(map);
-    marker.bindPopup(contentString,{maxWidth:260});
-    osmMarkers[spot.docId + '|' + spot.pathType + '|' + (spot.groupName||'')]={marker};
-  }
-
-  async function saveData() {
-    if(!currentUid){alert('認証処理中のため少々お待ちください。');return;}
-    const fileInput=document.getElementById('file-photo');
-    const rawFile=fileInput.files[0];
-    const rating=document.querySelector('input[name="rating"]:checked')?.value||3;
-    const comment=document.getElementById('toilet-comment').value;
-    const privacy=document.querySelector('input[name="privacy"]:checked').value;
-    if(!tempMarker) return;
-
-    document.getElementById('loading-text').innerText='保存中...';
-    document.getElementById('loading').style.display='flex';
-
-    try{
-      const pos=tempMarker.getLatLng();
-      const features={
-        accessible:document.getElementById('chk-accessible').checked,
-        baby:document.getElementById('chk-baby').checked,
-        washlet:document.getElementById('chk-washlet').checked,
-        open24h:document.getElementById('chk-open24h').checked,
-        facility:document.getElementById('chk-facility').checked
-      };
-
-      let imageUrl='',imagePath='';
-      if(rawFile){
-        document.getElementById('loading-text').innerText='画像を圧縮・アップロード中...';
-        const compressedBlob=await compressImage(rawFile,1024,.75);
-        imagePath=`toilet_photos/${currentUid}/${Date.now()}.jpg`;
-        const snapshot=await storage.ref(imagePath).put(compressedBlob);
-        imageUrl=await snapshot.ref.getDownloadURL();
-      }
-
-      const newSpot={
-        lat:pos.lat,lng:pos.lng,rating:parseInt(rating),comment:comment,privacy:privacy,
-        groupName:privacy==='group'?currentActiveGroup:'',
-        userName:myNickname,userId:currentUid,imageUrl:imageUrl,imagePath:imagePath,
-        features:features,reviews:[],createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      if(privacy==='public') await db.collection('toiletSpots').add(newSpot);
-      else if(privacy==='group') await db.collection('groups').doc(currentActiveGroup).collection('toiletSpots').add(newSpot);
-      else await db.collection('users').doc(currentUid).collection('toiletSpots').add(newSpot);
-
-      closeForm();
-      resetFormInputs();
-    }catch(error){
-      alert('保存に失敗しました: '+error.message);
-    }finally{
-      document.getElementById('loading').style.display='none';
-      document.getElementById('loading-text').innerText='接続中...';
-    }
-  }
-
-  function resetFormInputs(){
-    document.getElementById('toilet-comment').value='';
-    document.getElementById('file-photo').value='';
-    ['accessible','baby','washlet','open24h','facility'].forEach(x=>document.getElementById('chk-'+x).checked=false);
-  }
-
-  function getDocRef(docId,pathType,groupName){
-    if(pathType==='public') return db.collection('toiletSpots').doc(docId);
-    if(pathType==='group') return db.collection('groups').doc(groupName||currentActiveGroup).collection('toiletSpots').doc(docId);
-    if(pathType==='private') return db.collection('users').doc(currentUid).collection('toiletSpots').doc(docId);
-    return null;
-  }
-
-  async function deleteSpot(docId,pathType,groupName){
-    if(!confirm('この記録を削除しますか？')) return;
-    document.getElementById('loading-text').innerText='削除中...';
-    document.getElementById('loading').style.display='flex';
-    try{
-      const spot=allSpots.find(s=>s.docId===docId && s.pathType===pathType && (s.groupName||'')===(groupName||''));
-      const docRef=getDocRef(docId,pathType,spot?.groupName||groupName);
-      if(!docRef) throw new Error('参照の取得に失敗しました。');
-      const docSnap=await docRef.get();
-      if(docSnap.exists){
-        const data=docSnap.data();
-        if(data.userId!==currentUid){alert('本人の投稿のみ削除できます。');return;}
-        if(data.imagePath){try{await storage.ref(data.imagePath).delete();}catch(e){}}
-        await docRef.delete();
-      }
-    }catch(error){alert('削除に失敗しました: '+error.message);}
-    finally{document.getElementById('loading').style.display='none';document.getElementById('loading-text').innerText='接続中...';}
-  }
-
-  async function deleteSelectedSpots(){
-    const checkboxes=document.querySelectorAll('.spot-checkbox:checked');
-    if(checkboxes.length===0){alert('削除したい項目にチェックを入れてください。');return;}
-    if(!confirm(`選択した ${checkboxes.length} 件の記録を削除しますか？`)) return;
-    document.getElementById('loading-text').innerText='一括削除中...';
-    document.getElementById('loading').style.display='flex';
-
-    try{
-      for(const cb of checkboxes){
-        const key=cb.value;
-        const spot=allSpots.find(s=>s._key===key);
-        if(spot && spot.userId===currentUid){
-          const docRef=getDocRef(spot.docId,spot.pathType,spot.groupName);
-          if(docRef){
-            if(spot.imagePath){try{await storage.ref(spot.imagePath).delete();}catch(e){}}
-            await docRef.delete();
-          }
-        }
-      }
-    }catch(error){alert('一括削除処理に一部失敗しました: '+error.message);}
-    finally{document.getElementById('loading').style.display='none';document.getElementById('loading-text').innerText='接続中...';}
-  }
-
-  function openDetailModal(docId,pathType,groupName){
-    selectedSpotForReview=allSpots.find(s=>s.docId===docId && s.pathType===pathType && (s.groupName||'')===(groupName||''));
-    if(!selectedSpotForReview) selectedSpotForReview=allSpots.find(s=>s.docId===docId);
-    if(!selectedSpotForReview) return;
-
-    const spot=selectedSpotForReview;
-    const stars='★'.repeat(spot.rating||3)+'☆'.repeat(5-(spot.rating||3));
-    let reviewsHtml='';
-    if(spot.reviews && spot.reviews.length){
-      reviewsHtml='<h4 style="margin:10px 0 5px;">みんなからの追加レビュー・コメント</h4>';
-      spot.reviews.forEach(r=>{
-        const rStars='★'.repeat(r.rating||3)+'☆'.repeat(5-(r.rating||3));
-        reviewsHtml+=`<div style="background:#f8f9fa;padding:8px;border-radius:6px;margin-bottom:6px;"><b>${escapeHTML(r.userName)}</b> <span style="color:#ffca08;">${rStars}</span><br><span>${escapeHTML(r.comment)}</span></div>`;
-      });
-    }else reviewsHtml='<p style="color:#888;font-size:12px;">まだ追加のレビューはありません。</p>';
-
-    document.getElementById('detail-content-area').innerHTML=`
-      <b>投稿者:</b> ${escapeHTML(spot.userName)}<br>
-      <b>初期評価:</b> <span style="color:#ffca08;">${stars}</span><br>
-      <b>コメント:</b> ${escapeHTML(spot.comment||'なし')}<br>
-      ${renderFeatureTags(spot.features)}
-      <hr style="border:0;border-top:1px solid #eee;margin:10px 0;">
-      ${reviewsHtml}`;
-    document.getElementById('detail-modal').classList.add('open');
-  }
-
-  function closeDetailModal(){document.getElementById('detail-modal').classList.remove('open');selectedSpotForReview=null;}
-
-  async function submitReview(){
-    if(!selectedSpotForReview) return;
-    const rating=document.querySelector('input[name="review-rating"]:checked')?.value||3;
-    const comment=document.getElementById('review-comment').value;
-    if(!comment){alert('コメントを入力してください。');return;}
-
-    document.getElementById('loading-text').innerText='レビュー送信中...';
-    document.getElementById('loading').style.display='flex';
-    try{
-      const spot=selectedSpotForReview;
-      const docRef=getDocRef(spot.docId,spot.pathType,spot.groupName);
-      if(!docRef) throw new Error('データ参照が見つかりません。');
-      const newReview={userName:myNickname,userId:currentUid,rating:parseInt(rating),comment:comment,createdAt:new Date().toISOString()};
-      await docRef.update({reviews:firebase.firestore.FieldValue.arrayUnion(newReview)});
-      document.getElementById('review-comment').value='';
-      closeDetailModal();
-      alert('評価・コメントを追加しました！');
-    }catch(error){alert('レビューの追加に失敗しました: '+error.message);}
-    finally{document.getElementById('loading').style.display='none';document.getElementById('loading-text').innerText='接続中...';}
-  }
-
-  function switchTab(tabName){
-    if(tabName==='map'){
-      document.getElementById('map').style.display='block';
-      document.getElementById('list-view').style.display='none';
-      document.getElementById('nav-map').classList.add('active');
-      document.getElementById('nav-list').classList.remove('active');
-      setTimeout(()=>{if(map) map.invalidateSize();},100);
-    }else{
-      document.getElementById('map').style.display='none';
-      document.getElementById('list-view').style.display='block';
-      document.getElementById('nav-list').classList.add('active');
-      document.getElementById('nav-map').classList.remove('active');
-      renderList();
-    }
-  }
-
-  function makeSpotKey(spot){
-    return spot.docId+'|'+spot.pathType+'|'+(spot.groupName||'');
-  }
-
-  function renderList(){
-    const container=document.getElementById('list-container');
-    const searchQuery=document.getElementById('search-box').value.toLowerCase();
-    const sortMethod=document.getElementById('sort-box').value;
-
-    const filtered=allSpots.filter(spot=>{
-      const matchesText=(spot.comment||'').toLowerCase().includes(searchQuery)||(spot.userName||'').toLowerCase().includes(searchQuery);
-      return matchesText && spotMatchesFilters(spot);
-    });
-
-    filtered.sort((a,b)=>{
-      if(sortMethod==='highest') return (b.rating||0)-(a.rating||0);
-      if(sortMethod==='nearest') return getDistanceMeters(a.lat,a.lng)-getDistanceMeters(b.lat,b.lng);
-      const getTime=item=>{
-        if(!item.createdAt) return 0;
-        if(typeof item.createdAt==='string') return new Date(item.createdAt).getTime();
-        if(item.createdAt.seconds) return item.createdAt.seconds*1000;
-        return 0;
-      };
-      return getTime(b)-getTime(a);
-    });
-
-    if(!filtered.length){container.innerHTML='<div class="empty-state">表示できる記録がありません。</div>';return;}
-
-    let html='';
-    filtered.forEach((spot,index)=>{
-      spot._key=makeSpotKey(spot);
-      const stars='★'.repeat(spot.rating||3)+'☆'.repeat(5-(spot.rating||3));
-      let badgeClass='badge-public',badgeText='🌐 全体共有';
-      if(spot.privacy==='private'){badgeClass='badge-private';badgeText='🔒 自分のみ';}
-      else if(spot.privacy==='group'){badgeClass='badge-group';badgeText=`👥 グループ(${escapeHTML(spot.groupName||'')})`;}
-
-      const tagsHtml=renderFeatureTags(spot.features);
-      const safeImgUrl=escapeHTML(spot.imageUrl);
-      const imgHtml=safeImgUrl?`<img src="${safeImgUrl}" class="spot-img" onclick="window.open('${safeImgUrl}','_blank')">`:'';
-      const distStr=calculateDistanceStr(spot.lat,spot.lng);
-      const distBadge=distStr?`<span class="distance-tag">📍 約 ${distStr}</span>`:'';
-      const isOwner=spot.userId===currentUid;
-      const deleteBtnHtml=isOwner?`<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}','${spot.pathType}','${escapeHTML(spot.groupName||'')}')">🗑️ 削除</button>`:'';
-
-      if(index===2){
-        html+=`<div class="ad-container-card"><b>【PR】おすすめの外出用衛生グッズ</b><br>外出先のトイレでも安心！携帯用除菌ミスト＆流せるティッシュ<a href="https://www.amazon.co.jp/" target="_blank" rel="noopener" class="ad-link">Amazonで詳細を見る ↗</a></div>`;
-      }
-
-      html+=`
-        <div class="list-item">
-          <div class="list-header">
-            <label style="display:flex;align-items:center;gap:8px;">
-              <input type="checkbox" class="spot-checkbox" value="${escapeHTML(spot._key)}" ${!isOwner?'disabled':''} style="transform:scale(1.2);">
-              <span class="list-stars">${stars}</span>
-            </label>
-            ${distBadge}<span class="list-badge ${badgeClass}">${badgeText}</span>
-          </div>
-          ${tagsHtml}${imgHtml}
-          <div class="list-comment"><b>${escapeHTML(spot.comment||'コメントなし')}</b></div>
-          <div class="list-user">投稿者: <b>${escapeHTML(spot.userName||'名無し')}</b> (${spot.reviews?spot.reviews.length:0}件の追加評価)</div>
-          <div class="list-actions">
-            <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}','${spot.pathType}','${escapeHTML(spot.groupName||'')}')">📍 地図</button>
-            <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat},${spot.lng})">🧭 ナビ</button>
-            <button class="btn-action" style="background:#17a2b8;" onclick="openDetailModal('${spot.docId}','${spot.pathType}','${escapeHTML(spot.groupName||'')}')">💬 評価</button>
-            ${deleteBtnHtml}
-          </div>
-        </div>`;
-    });
-    container.innerHTML=html;
-  }
-
-  function viewOnMap(docId,pathType,groupName){
-    switchTab('map');
-    const target=allSpots.find(s=>s.docId===docId && s.pathType===pathType && (s.groupName||'')===(groupName||''));
-    if(!target) return;
-    map.setView([target.lat,target.lng],17);
-    const key=makeSpotKey(target);
-    if(osmMarkers[key]) osmMarkers[key].marker.openPopup();
-  }
-
-  function updateCurrentLocation(isInitial=false){
-    if(!navigator.geolocation){
-      if(!isInitial) alert('お使いのブラウザは位置情報をサポートしていません。');
-      return;
     }
 
-    navigator.geolocation.getCurrentPosition(pos=>{
-      currentLat=pos.coords.latitude;
-      currentLng=pos.coords.longitude;
+    function openSettings() {
+      document.getElementById('input-nickname').value = myNickname;
+      document.getElementById('input-group').value = myGroupId;
+      document.getElementById('settings-modal').classList.add('open');
+    }
+    function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
 
-      if(currentMarker) currentMarker.setLatLng([currentLat,currentLng]);
-      else{
-        currentMarker=L.circleMarker([currentLat,currentLng],{
-          radius:8,fillOpacity:.8,weight:2
-        }).addTo(map);
-        currentMarker.bindTooltip('現在地',{permanent:false});
-      }
-
-      if(isInitial) map.setView([currentLat,currentLng],15);
-      refreshMapAndList();
-    },err=>{
-      console.warn('位置情報の取得失敗:',err.message);
-      if(!isInitial) alert('現在地の取得に失敗しました。端末の位置情報設定を確認してください。');
-    },{enableHighAccuracy:true,timeout:8000,maximumAge:10000});
-  }
-
-  function openForm(){document.getElementById('input-form').classList.add('open');}
-  function closeForm(){
-    document.getElementById('input-form').classList.remove('open');
-    if(tempMarker){map.removeLayer(tempMarker);tempMarker=null;}
-  }
-
-  function openSettings(){
-    document.getElementById('input-nickname').value=myNickname;
-    document.getElementById('input-groups').value=myGroupsInput;
-    const selectEl=document.getElementById('select-active-group');
-    selectEl.innerHTML='';
-    myGroupsArray.forEach(g=>{
-      const opt=document.createElement('option');
-      opt.value=g;opt.innerText=g;
-      if(g===currentActiveGroup) opt.selected=true;
-      selectEl.appendChild(opt);
-    });
-    document.getElementById('settings-modal').classList.add('open');
-  }
-  function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
-  function openPrivacyModal(){document.getElementById('privacy-modal').classList.add('open');}
-  function closePrivacyModal(){document.getElementById('privacy-modal').classList.remove('open');}
-
-  function saveSettings(){
-    myNickname=document.getElementById('input-nickname').value||'ゲスト';
-    myGroupsInput=document.getElementById('input-groups').value||'free';
-    myGroupsArray=myGroupsInput.split(',').map(g=>g.trim()).filter(Boolean);
-    if(!myGroupsArray.length) myGroupsArray=['free'];
-
-    const selected=document.getElementById('select-active-group').value;
-    currentActiveGroup=myGroupsArray.includes(selected)?selected:myGroupsArray[0];
-
-    localStorage.setItem('user_nickname',myNickname);
-    localStorage.setItem('user_groups',myGroupsArray.join(','));
-    localStorage.setItem('user_active_group',currentActiveGroup);
-
-    updateProfileUI();
-    closeSettings();
-    setupRealtimeListeners();
-    alert('設定を保存しました。');
-  }
-
-  // Enterキーでも場所検索
-  document.getElementById('input-search-location').addEventListener('keydown',e=>{
-    if(e.key==='Enter') searchLocation();
-  });
-
-  // Firebase匿名認証
-  auth.signInAnonymously().catch(error=>alert('匿名認証に失敗しました: '+error.message));
-  auth.onAuthStateChanged(user=>{
-    if(user){
-      currentUid=user.uid;
+    function openPrivacyModal() { document.getElementById('privacy-modal').classList.add('open'); }
+    function closePrivacyModal() { document.getElementById('privacy-modal').classList.remove('open'); }
+    
+    function saveSettings() {
+      myNickname = document.getElementById('input-nickname').value || 'ゲスト';
+      myGroupId = document.getElementById('input-group').value || 'free';
+      localStorage.setItem('user_nickname', myNickname);
+      localStorage.setItem('user_group', myGroupId);
+      updateProfileUI();
+      closeSettings();
       setupRealtimeListeners();
+      alert('設定を保存しました。');
     }
-  });
-
-  // Google Maps APIは地図表示には使用しません。
-  // Google Mapsは openNavigation() のナビゲーション時だけ使用します。
-  window.addEventListener('load',function(){
-    initMap();
-  });
-</script>
+  </script>
 </body>
 </html>
