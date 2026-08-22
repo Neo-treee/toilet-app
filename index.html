@@ -942,12 +942,13 @@
     };
     locateControl.addTo(map);
 
-    // 地図タップで即座に一時ピンを立ててフォームを開く
-    map.on('click', function(e) {
+    // 地図を長押し（スマホ）、または右クリック（PC）で一時ピンを立ててフォームを開く
+    map.on('contextmenu', function(e) {
       if (tempMarker) { 
         map.removeLayer(tempMarker); 
       }
-      tempMarker = L.marker(e.latlng).addTo(map);
+      // ユーザーがピンの位置を微調整できるようにドラッグ可能（draggable）に設定
+      tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
       openForm();
     });
 
