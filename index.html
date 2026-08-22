@@ -178,6 +178,19 @@
   -ms-user-select: none;       /* IE/Edge */
   user-select: none;           /* 一般的なブラウザでのテキスト選択を無効化 */
 }
+/* フォームのヘッダーやボタン、下部メニューのテキスト選択・長押しを無効化 */
+.form-header,
+.close-btn,
+.save-btn,
+#bottom-nav,
+.nav-btn,
+label {
+  -webkit-touch-callout: none; /* iOSの長押しメニューを無効化 */
+  -webkit-user-select: none;   /* Safariでのテキスト選択を無効化 */
+  -moz-user-select: none;      /* Firefox */
+  -ms-user-select: none;       /* IE/Edge */
+  user-select: none;           /* 一般的なブラウザでのテキスト選択を無効化 */
+}
 
   </style>
 </head>
