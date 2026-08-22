@@ -1,3 +1,4 @@
+最新版
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -16,7 +17,7 @@
   <meta name="apple-mobile-web-app-title" content="トイレマップ">
 
   <!-- Google Maps API (Places, Geometry ライブラリを確実に読み込み) -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCvSwUrWnPDiAQ6i2m9heZ73OYNOTX33J4&libraries=places,geometry"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places,geometry"></script>
 
   <!-- Firebase SDK (v9 compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -176,7 +177,7 @@
     <button class="settings-btn" onclick="openSettings()">設定</button>
   </div>
 
-  <!-- 駅名・住所検索バー -->
+  <!-- 駅名・住所検索バー (Google Places Geocoderを使用) -->
   <div id="search-location-bar">
     <input type="text" id="input-search-location" class="loc-input" placeholder="駅名・住所で検索 (例: 新宿駅)">
     <button class="loc-btn" onclick="searchLocation()">🔍 検索</button>
@@ -374,7 +375,7 @@
     }
     updateProfileUI();
 
-    // Google Maps 初期化関連の変数
+    // Google Maps 初期化
     const DEFAULT_LAT = 35.6812;
     const DEFAULT_LNG = 139.7671;
     let map = null;
@@ -387,7 +388,6 @@
     let unsubscribers = [];
     let selectedSpotForReview = null;
 
-    // =============== 追加・修正箇所 ===============
     function initMap() {
       map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: DEFAULT_LAT, lng: DEFAULT_LNG },
@@ -410,38 +410,9 @@
         });
         openForm();
       });
-
-      // 現在地に戻るボタンの作成と地図への追加
-      const locationButton = document.createElement("div");
-      locationButton.style.backgroundColor = "white";
-      locationButton.style.borderRadius = "4px";
-      locationButton.style.cursor = "pointer";
-      locationButton.style.width = "40px";
-      locationButton.style.height = "40px";
-      locationButton.style.textAlign = "center";
-      locationButton.style.lineHeight = "40px";
-      locationButton.style.fontSize = "20px";
-      locationButton.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
-      locationButton.style.margin = "10px";
-      locationButton.title = "現在地に戻る";
-      locationButton.innerHTML = "🎯";
-
-      locationButton.addEventListener("click", () => {
-        if (currentLat && currentLng) {
-          map.setCenter({ lat: currentLat, lng: currentLng });
-          map.setZoom(16);
-        }
-        updateCurrentLocation(false);
-      });
-      // 地図の右上にコントロールとして追加
-      map.controls[google.maps.ControlPosition.TOP_RIGHT].push(locationButton);
-
-      // マップの初期化が終わったら現在地を取得する
-      updateCurrentLocation(true);
     }
 
     window.onload = initMap;
-    // ============================================
 
     // 匿名認証とリアルタイム同期の初期化
     auth.signInAnonymously().catch(function(error) {
@@ -1077,6 +1048,31 @@
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
       );
     }
+
+    updateCurrentLocation(true);
+
+    const locationButton = document.createElement("div");
+    locationButton.style.backgroundColor = "white";
+    locationButton.style.borderRadius = "4px";
+    locationButton.style.cursor = "pointer";
+    locationButton.style.width = "40px";
+    locationButton.style.height = "40px";
+    locationButton.style.textAlign = "center";
+    locationButton.style.lineHeight = "40px";
+    locationButton.style.fontSize = "20px";
+    locationButton.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+    locationButton.style.margin = "10px";
+    locationButton.title = "現在地に戻る";
+    locationButton.innerHTML = "🎯";
+
+    locationButton.addEventListener("click", () => {
+      if (currentLat && currentLng) {
+        map.setCenter({ lat: currentLat, lng: currentLng });
+        map.setZoom(16);
+      }
+      updateCurrentLocation(false);
+    });
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(locationButton);
 
     function openForm() { document.getElementById('input-form').classList.add('open'); }
     function closeForm() {
