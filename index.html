@@ -167,31 +167,36 @@
 
     .footer-links { text-align: center; padding: 10px; font-size: 11px; color: #666; background: #fff; border-top: 1px solid #eee; }
     .footer-links a { color: #007bff; text-decoration: none; margin: 0 5px; }
-　　　/* 地図およびズームボタン（＋/－）のテキスト選択・長押しメニューを無効化する */
-#map,
-.leaflet-control-container,
-.leaflet-control-zoom a,
-.leaflet-bar a {
-  -webkit-touch-callout: none; /* iOSの長押しメニュー（コールアウト）を無効化 */
-  -webkit-user-select: none;   /* Safariでのテキスト選択を無効化 */
-  -moz-user-select: none;      /* Firefox */
-  -ms-user-select: none;       /* IE/Edge */
-  user-select: none;           /* 一般的なブラウザでのテキスト選択を無効化 */
-}
-/* フォームのヘッダーやボタン、下部メニューのテキスト選択・長押しを無効化 */
-.form-header,
-.close-btn,
-.save-btn,
-#bottom-nav,
-.nav-btn,
-label {
-  -webkit-touch-callout: none; /* iOSの長押しメニューを無効化 */
-  -webkit-user-select: none;   /* Safariでのテキスト選択を無効化 */
-  -moz-user-select: none;      /* Firefox */
-  -ms-user-select: none;       /* IE/Edge */
-  user-select: none;           /* 一般的なブラウザでのテキスト選択を無効化 */
-}
 
+    /* 【長押し対策】地図、ボタン類、モーダルラベルのテキスト選択およびiOSコールアウトを防止 */
+    #map,
+    .leaflet-control-container,
+    .leaflet-control-zoom a,
+    .leaflet-bar a,
+    #header-settings,
+    #search-location-bar,
+    #filter-bar,
+    #bottom-nav,
+    .form-header,
+    .close-btn,
+    .save-btn,
+    label,
+    .star-rating label {
+      -webkit-touch-callout: none; /* iOSの長押しポップアップメニューを禁止 */
+      -webkit-user-select: none;   /* Safari / iOS Safari */
+      -moz-user-select: none;      /* Firefox */
+      -ms-user-select: none;       /* IE / Edge */
+      user-select: none;           /* 標準プロパティ */
+    }
+
+    /* 文字入力フィールドだけは通常の選択・入力を許可 */
+    input[type="text"],
+    textarea {
+      -webkit-user-select: text;
+      -moz-user-select: text;
+      -ms-user-select: text;
+      user-select: text;
+    }
   </style>
 </head>
 <body>
@@ -443,6 +448,7 @@ label {
       document.getElementById('loading').style.display = 'flex';
 
       try {
+        // ※ Nominatimの利用規約に沿うため、実運用時はご自身の連絡先メールアドレスをご指定ください
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&email=info@toilet-app.com`);
         const data = await res.json();
 
