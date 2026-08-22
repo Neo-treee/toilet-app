@@ -86,7 +86,7 @@
 
     #bottom-nav {
       height: 55px; background: white; border-top: 1px solid #ccc;
-      display: flex; justify-around: space-around; align-items: center; z-index: 1001; user-select: none;
+      display: flex; justify-content: space-around; align-items: center; z-index: 1001; user-select: none;
     }
     .nav-btn { flex: 1; text-align: center; padding: 8px; color: #888; font-size: 13px; cursor: pointer; }
     .nav-btn.active { color: #007bff; font-weight: bold; }
@@ -931,7 +931,6 @@
     };
     locateControl.addTo(map);
 
-    // 地図タップで即座にピンを生成し、投稿フォームを表示する設定
     map.on('click', function(e) {
       if (tempMarker) { map.removeLayer(tempMarker); }
       tempMarker = L.marker(e.latlng).addTo(map);
