@@ -242,8 +242,8 @@
     <div class="form-group">
       <label>公開範囲</label>
       <div class="privacy-group">
-        <label><input type="radio" name="privacy" value="public" checked> 🌐 全体公開（みんなで共有）</label>
-        <label><input type="radio" name="privacy" value="group"> 👥 グループのみ共有</label>
+        <label><input type="radio" name="privacy" value="group" checked> 👥 グループのみ共有</label>
+        <label><input type="radio" name="privacy" value="public"> 🌐 全体公開（みんなで共有）</label>
         <label><input type="radio" name="privacy" value="private"> 🔒 自分のみ（クラウド非公開保存）</label>
       </div>
     </div>
@@ -291,7 +291,7 @@
     <div class="form-group">
       <label>グループID（合言葉）</label>
       <input type="text" id="input-group" placeholder="例：tanaka-family">
-      <small style="color:#666;">同じIDを入力した友達同士で記録を共有できます。空欄の場合は全体公開のみ扱います。</small>
+      <small style="color:#666;">同じIDを入力した友達同士で記録を共有できます。</small>
     </div>
     <button class="save-btn" onclick="saveSettings()">設定を保存</button>
   </div>
@@ -327,7 +327,7 @@
 
     let currentUid = null;
     let myNickname = localStorage.getItem('user_nickname') || 'ゲスト';
-    let myGroupId = localStorage.getItem('user_group') || '';
+    let myGroupId = localStorage.getItem('user_group') || 'free';
     let activeFilters = [];
 
     // XSS 対策エスケープ関数
@@ -343,7 +343,7 @@
 
     function updateProfileUI() {
       document.getElementById('disp-nickname').innerText = myNickname;
-      document.getElementById('disp-group').innerText = myGroupId ? myGroupId : '未設定';
+      document.getElementById('disp-group').innerText = myGroupId;
     }
     updateProfileUI();
 
@@ -486,16 +486,16 @@
         db.collection('toiletSpots').onSnapshot(snap => {
           publicSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'public', ...doc.data() }));
           updateAll();
-        }, err => console.error("全体データの取得失敗:", err))
+        }, err => console.error(err))
       );
 
-      // ② グループ (myGroupIdが存在する場合のみ登録)
-      if (myGroupId && myGroupId.trim() !== '') {
+      // ② グループ
+      if (myGroupId) {
         unsubscribers.push(
           db.collection('groups').doc(myGroupId).collection('toiletSpots').onSnapshot(snap => {
             groupSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', ...doc.data() }));
             updateAll();
-          }, err => console.error("グループデータの取得失敗:", err))
+          }, err => console.error(err))
         );
       }
 
@@ -505,7 +505,7 @@
           db.collection('users').doc(currentUid).collection('toiletSpots').onSnapshot(snap => {
             privateSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'private', ...doc.data() }));
             updateAll();
-          }, err => console.error("個人データの取得失敗:", err))
+          }, err => console.error(err))
         );
       }
     }
@@ -575,9 +575,10 @@
       var distStr = calculateDistanceStr(spot.lat, spot.lng);
       var distHtml = distStr ? `<div style="font-size:11px; color:#007bff; font-weight:bold; margin-bottom:4px;">📍 現在地から ${distStr}</div>` : '';
 
-      // 本人チェックを解除して全ピンに削除ボタンを付与（過去開発ピンの削除用）
-      var deleteBtnHtml = `<button style="flex:1; padding:5px 2px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
-        onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>`;
+      var isOwner = spot.userId === currentUid;
+      var deleteBtnHtml = isOwner ? 
+        `<button style="flex:1; padding:5px 2px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
+          onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
 
       var popupContent = `
         <div style="font-size:13px; min-width:170px; max-width:210px;">
@@ -614,11 +615,6 @@
       var rating = document.querySelector('input[name="rating"]:checked')?.value || 3;
       var comment = document.getElementById('toilet-comment').value;
       var privacy = document.querySelector('input[name="privacy"]:checked').value;
-
-      if (privacy === 'group' && (!myGroupId || myGroupId.trim() === '')) {
-        alert('グループのみの投稿を行うには、上の「設定」ボタンからグループIDを設定してください。');
-        return;
-      }
 
       if (!tempMarker) return;
 
@@ -712,12 +708,13 @@
           const docSnap = await docRef.get();
           if (docSnap.exists) {
             const data = docSnap.data();
+            if (data.userId !== currentUid) {
+              alert('本人の投稿のみ削除できます。');
+              return;
+            }
             if (data.imagePath) {
               try { await storage.ref(data.imagePath).delete(); } catch (e) {}
             }
-            await docRef.delete();
-          } else {
-            // ドキュメントが存在しないか読み取れない場合は強制消去を試みる
             await docRef.delete();
           }
         } catch (error) {
@@ -745,7 +742,7 @@
         for (const cb of checkboxes) {
           const docId = cb.value;
           const spot = allSpots.find(s => s.docId === docId);
-          if (spot) {
+          if (spot && spot.userId === currentUid) {
             const docRef = getDocRef(docId, spot.pathType);
             if (docRef) {
               if (spot.imagePath) {
@@ -835,8 +832,9 @@
         var distStr = calculateDistanceStr(spot.lat, spot.lng);
         var distBadge = distStr ? `<span class="distance-tag">📍 約 ${distStr}</span>` : '';
 
-        // チェックボックスも常に利用可能に修正
-        var deleteBtnHtml = `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>`;
+        var isOwner = spot.userId === currentUid;
+        var deleteBtnHtml = isOwner ? 
+          `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
 
         if (index === 2) {
           html += `
@@ -852,7 +850,7 @@
           <div class="list-item">
             <div class="list-header">
               <label style="display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" class="spot-checkbox" value="${spot.docId}" style="transform: scale(1.2);">
+                <input type="checkbox" class="spot-checkbox" value="${spot.docId}" ${!isOwner ? 'disabled' : ''} style="transform: scale(1.2);">
                 <span class="list-stars">${stars}</span>
               </label>
               ${distBadge}
@@ -974,7 +972,7 @@
     
     function saveSettings() {
       myNickname = document.getElementById('input-nickname').value || 'ゲスト';
-      myGroupId = document.getElementById('input-group').value || '';
+      myGroupId = document.getElementById('input-group').value || 'free';
       localStorage.setItem('user_nickname', myNickname);
       localStorage.setItem('user_group', myGroupId);
       updateProfileUI();
