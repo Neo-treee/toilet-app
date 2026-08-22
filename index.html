@@ -167,6 +167,18 @@
 
     .footer-links { text-align: center; padding: 10px; font-size: 11px; color: #666; background: #fff; border-top: 1px solid #eee; }
     .footer-links a { color: #007bff; text-decoration: none; margin: 0 5px; }
+　　　/* 地図およびズームボタン（＋/－）のテキスト選択・長押しメニューを無効化する */
+#map,
+.leaflet-control-container,
+.leaflet-control-zoom a,
+.leaflet-bar a {
+  -webkit-touch-callout: none; /* iOSの長押しメニュー（コールアウト）を無効化 */
+  -webkit-user-select: none;   /* Safariでのテキスト選択を無効化 */
+  -moz-user-select: none;      /* Firefox */
+  -ms-user-select: none;       /* IE/Edge */
+  user-select: none;           /* 一般的なブラウザでのテキスト選択を無効化 */
+}
+
   </style>
 </head>
 <body>
