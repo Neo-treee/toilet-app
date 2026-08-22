@@ -36,11 +36,12 @@
 
   <!-- Firebase SDK (v9 compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
   <style>
-    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f4; display: flex; flex-direction: column; height: 100vh; user-select: none; }
+    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f4; display: flex; flex-direction: column; height: 100vh; }
     
     #header-settings {
       background: #333; color: white; padding: 10px 15px; font-size: 13px;
@@ -48,21 +49,19 @@
     }
     .settings-btn { background: #555; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
 
-    /* 場所検索バー */
     #search-location-bar {
       background: #007bff; padding: 8px 12px; display: flex; gap: 8px; z-index: 1001;
     }
     .loc-input { flex: 1; padding: 8px 12px; border: none; border-radius: 20px; font-size: 13px; outline: none; }
     .loc-btn { background: #0056b3; color: white; border: none; padding: 0 15px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; }
 
-    /* フィルターバー */
     #filter-bar {
       background: #fff; padding: 8px 12px; border-bottom: 1px solid #ddd;
       display: flex; gap: 8px; overflow-x: auto; z-index: 1000; white-space: nowrap;
     }
     .filter-chip {
       background: #f0f0f0; border: 1px solid #ccc; padding: 4px 10px;
-      border-radius: 16px; font-size: 12px; cursor: pointer;
+      border-radius: 16px; font-size: 12px; cursor: pointer; user-select: none;
     }
     .filter-chip.active { background: #007bff; color: white; border-color: #007bff; font-weight: bold; }
 
@@ -74,7 +73,6 @@
       background: #f4f4f4; z-index: 2; display: none; overflow-y: auto; padding-bottom: 70px;
     }
 
-    /* 広告枠 */
     .ad-container-banner {
       background: #e9ecef; border-top: 1px solid #ccc; text-align: center;
       padding: 5px; font-size: 10px; color: #777; z-index: 1001; min-height: 50px;
@@ -88,7 +86,7 @@
 
     #bottom-nav {
       height: 55px; background: white; border-top: 1px solid #ccc;
-      display: flex; justify-content: space-around; align-items: center; z-index: 1001;
+      display: flex; justify-content: space-around; align-items: center; z-index: 1001; user-select: none;
     }
     .nav-btn { flex: 1; text-align: center; padding: 8px; color: #888; font-size: 13px; cursor: pointer; }
     .nav-btn.active { color: #007bff; font-weight: bold; }
@@ -199,7 +197,7 @@
   </div>
   
   <div id="loading">
-    <div id="loading-text">接続中...</div>
+    <div id="loading-text">認証・接続中...</div>
   </div>
 
   <div id="content-area">
@@ -246,7 +244,7 @@
       <div class="privacy-group">
         <label><input type="radio" name="privacy" value="group" checked> 👥 グループのみ共有</label>
         <label><input type="radio" name="privacy" value="public"> 🌐 全体公開（みんなで共有）</label>
-        <label><input type="radio" name="privacy" value="private"> 🔒 自分のみ（端末にのみ非公開保存）</label>
+        <label><input type="radio" name="privacy" value="private"> 🔒 自分のみ（クラウド非公開保存）</label>
       </div>
     </div>
     <div class="form-group">
@@ -296,15 +294,6 @@
       <small style="color:#666;">同じIDを入力した友達同士で記録を共有できます。</small>
     </div>
     <button class="save-btn" onclick="saveSettings()">設定を保存</button>
-
-    <div style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 15px; display:flex; flex-direction:column; gap:10px;">
-      <button onclick="clearPrivateSpots()" style="width: 100%; padding: 10px; background: #6f42c1; color: white; border: none; border-radius: 8px; font-size: 12px; cursor: pointer;">
-        🔒 自分のみ保存（プライベートデータ）の全削除
-      </button>
-      <button onclick="deleteAllGroupSpots()" style="width: 100%; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 8px; font-size: 12px; cursor: pointer;">
-        ⚠️ 現在のグループデータを全件一括削除
-      </button>
-    </div>
   </div>
 
   <!-- プライバシーポリシーモーダル -->
@@ -314,9 +303,9 @@
       <button class="close-btn" onclick="closePrivacyModal()">×</button>
     </div>
     <div style="font-size: 12px; color: #444; line-height: 1.6;">
-      <p><b>1. 情報の取得と利用</b><br>当アプリでは、ユーザーの位置情報および投稿されたコメント・写真をサービス提供の目的でのみ使用します。プライベートモードで投稿されたデータはサーバーに送信されず、お客様の端末内にのみ保持されます。</p>
+      <p><b>1. 情報の取得と利用</b><br>当アプリでは、ユーザーの位置情報および投稿されたコメント・写真をサービス提供の目的でのみ使用します。</p>
       <p><b>2. 広告の配信について</b><br>当アプリでは第三者配信事業者（Google AdSense等）による広告を掲載する場合があります。</p>
-      <p><b>3. お問い合わせ</b><br>投稿の削除依頼につきましては設定画面より削除を行っていただくか、管理者へご連絡ください。</p>
+      <p><b>3. お問い合わせ</b><br>投稿の削除依頼につきましては投稿一覧画面より削除を行っていただくか、管理者へご連絡ください。</p>
     </div>
   </div>
 
@@ -332,19 +321,25 @@
     };
 
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const db = firebase.firestore();
     const storage = firebase.storage();
 
-    // 端末固有のユーザーID生成/保持（投稿主のみ削除権限を付与するための識別子）
-    let myUserId = localStorage.getItem('user_device_id');
-    if (!myUserId) {
-      myUserId = 'user_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-      localStorage.setItem('user_device_id', myUserId);
-    }
-
+    let currentUid = null;
     let myNickname = localStorage.getItem('user_nickname') || 'ゲスト';
     let myGroupId = localStorage.getItem('user_group') || 'free';
     let activeFilters = [];
+
+    // XSS 対策エスケープ関数
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
     function updateProfileUI() {
       document.getElementById('disp-nickname').innerText = myNickname;
@@ -352,21 +347,33 @@
     }
     updateProfileUI();
 
-    // デフォルト位置：東京駅（位置情報が拒否された場合のフォールバック）
+    // デフォルト位置：東京駅
     const DEFAULT_LAT = 35.6812;
     const DEFAULT_LNG = 139.7671;
     var map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LNG], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
 
     var tempMarker = null;
-    var firebaseSpots = [];
     var allSpots = [];
     var activeMarkers = {};
     var currentLat = null;
     var currentLng = null;
     var currentMarker = null;
+    var unsubscribers = [];
 
-    // アイコン生成 (グループ, プライベート判別)
+    // 匿名認証とリアルタイム同期の初期化
+    auth.signInAnonymously().catch(function(error) {
+      alert('匿名認証に失敗しました: ' + error.message);
+    });
+
+    auth.onAuthStateChanged(function(user) {
+      if (user) {
+        currentUid = user.uid;
+        setupRealtimeListeners();
+      }
+    });
+
+    // アイコン生成
     function createIcon(privacyType) {
       var className = 'custom-pin pin-public';
       var iconSymbol = '🚽';
@@ -385,13 +392,11 @@
       });
     }
 
-    // ナビゲーション起動（外部マップアプリ連携）
     function openNavigation(lat, lng) {
       const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
       window.open(url, '_blank');
     }
 
-    // 距離計算処理
     function calculateDistanceStr(lat2, lng2) {
       if (!currentLat || !currentLng) return null;
       var p1 = L.latLng(currentLat, currentLng);
@@ -405,30 +410,6 @@
       return L.latLng(currentLat, currentLng).distanceTo(L.latLng(lat2, lng2));
     }
 
-    // プライベートスポット（ローカルストレージ）管理
-    function getPrivateSpots() {
-      return JSON.parse(localStorage.getItem('private_toilet_spots') || '[]');
-    }
-    function savePrivateSpot(spot) {
-      const spots = getPrivateSpots();
-      spots.push(spot);
-      localStorage.setItem('private_toilet_spots', JSON.stringify(spots));
-    }
-    function deletePrivateSpot(docId) {
-      let spots = getPrivateSpots();
-      spots = spots.filter(s => s.docId !== docId);
-      localStorage.setItem('private_toilet_spots', JSON.stringify(spots));
-    }
-    function clearPrivateSpots() {
-      if (confirm('ローカルに保存されている自分のみのトイレ記録を全削除しますか？')) {
-        localStorage.removeItem('private_toilet_spots');
-        refreshMapAndList();
-        closeSettings();
-        alert('プライベートデータを全削除しました。');
-      }
-    }
-
-    // 場所検索機能
     async function searchLocation() {
       const query = document.getElementById('input-search-location').value;
       if (!query) return;
@@ -437,7 +418,7 @@
       document.getElementById('loading').style.display = 'flex';
 
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&email=user@example.com`);
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&email=info@toilet-app.com`);
         const data = await res.json();
 
         if (data && data.length > 0) {
@@ -455,7 +436,6 @@
       }
     }
 
-    // 写真の自動圧縮処理
     function compressImage(file, maxWidth = 1024, quality = 0.75) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -486,29 +466,53 @@
       });
     }
 
-    // リアルタイムデータ同期 (Firestore)
-    db.collection('toiletSpots').onSnapshot(function(snapshot) {
-      firebaseSpots = [];
-      snapshot.forEach(function(doc) {
-        var spot = doc.data();
-        spot.docId = doc.id;
-        if (spot.privacy === 'public' || spot.groupId === myGroupId) {
-          firebaseSpots.push(spot);
-        }
-      });
-      refreshMapAndList();
-      document.getElementById('loading').style.display = 'none';
-    }, function(error) {
-      document.getElementById('loading').style.display = 'none';
-      alert('Firebase接続エラー: ' + error.message);
-    });
+    // 各ルール階層（全体 / グループ / 自分のみ）からデータ受信
+    function setupRealtimeListeners() {
+      unsubscribers.forEach(unsub => unsub());
+      unsubscribers = [];
+
+      let publicSpots = [];
+      let groupSpots = [];
+      let privateSpots = [];
+
+      const updateAll = () => {
+        allSpots = [...publicSpots, ...groupSpots, ...privateSpots];
+        refreshMapAndList();
+        document.getElementById('loading').style.display = 'none';
+      };
+
+      // ① 全体
+      unsubscribers.push(
+        db.collection('toiletSpots').onSnapshot(snap => {
+          publicSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'public', ...doc.data() }));
+          updateAll();
+        }, err => console.error(err))
+      );
+
+      // ② グループ
+      if (myGroupId) {
+        unsubscribers.push(
+          db.collection('groups').doc(myGroupId).collection('toiletSpots').onSnapshot(snap => {
+            groupSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', ...doc.data() }));
+            updateAll();
+          }, err => console.error(err))
+        );
+      }
+
+      // ③ 自分のみ
+      if (currentUid) {
+        unsubscribers.push(
+          db.collection('users').doc(currentUid).collection('toiletSpots').onSnapshot(snap => {
+            privateSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'private', ...doc.data() }));
+            updateAll();
+          }, err => console.error(err))
+        );
+      }
+    }
 
     function refreshMapAndList() {
       Object.keys(activeMarkers).forEach(function(key) { map.removeLayer(activeMarkers[key]); });
       activeMarkers = {};
-
-      const privateSpots = getPrivateSpots();
-      allSpots = [...firebaseSpots, ...privateSpots];
 
       allSpots.forEach(function(spot) {
         var matchesFilter = activeFilters.every(function(f) {
@@ -550,42 +554,51 @@
       var badgeHtml = '';
       if (spot.privacy === 'private') {
         badgeHtml = '<span style="color:#6f42c1;">[🔒自分のみ]</span>';
-      } else if (spot.groupId === myGroupId && spot.privacy === 'group') {
+      } else if (spot.privacy === 'group') {
         badgeHtml = '<span style="color:green;">[👥グループ]</span>';
       } else {
         badgeHtml = '<span style="color:orange;">[🌐全体]</span>';
       }
 
       var tagsHtml = renderFeatureTags(spot.features);
-      var imgHtml = spot.imageUrl ? `<img src="${spot.imageUrl}" class="spot-img" onclick="window.open('${spot.imageUrl}')">` : '';
+      var safeImgUrl = escapeHTML(spot.imageUrl);
+      var imgHtml = safeImgUrl ? `<img src="${safeImgUrl}" class="spot-img" onclick="window.open('${safeImgUrl}')">` : '';
       var distStr = calculateDistanceStr(spot.lat, spot.lng);
       var distHtml = distStr ? `<div style="font-size:11px; color:#007bff; font-weight:bold; margin-bottom:4px;">📍 現在地から ${distStr}</div>` : '';
 
+      var isOwner = spot.userId === currentUid;
+      var deleteBtnHtml = isOwner ? 
+        `<button style="flex:1; padding:5px 2px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
+          onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
+
       var popupContent = `
         <div style="font-size:13px; min-width:170px; max-width:210px;">
-          ${badgeHtml} <b>${spot.userName || '名無し'}</b><br>
+          ${badgeHtml} <b>${escapeHTML(spot.userName || '名無し')}</b><br>
           <span style="color:#ffca08; font-size:14px;">${stars}</span><br>
           ${distHtml}
           ${tagsHtml}
           ${imgHtml}
-          <b>${spot.comment || 'コメントなし'}</b><br><br>
+          <b>${escapeHTML(spot.comment || 'コメントなし')}</b><br><br>
           <div style="display:flex; gap:4px;">
             <button style="flex:1; padding:5px 2px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
               onclick="openNavigation(${spot.lat}, ${spot.lng})">🧭 ナビ</button>
-            <button style="flex:1; padding:5px 2px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" 
-              onclick="deleteSpot('${spot.docId}', '${spot.privacy}', '${spot.userId || ''}')">🗑️ 削除</button>
+            ${deleteBtnHtml}
           </div>
         </div>
       `;
 
-      var marker = L.marker([spot.lat, spot.lng], { icon: createIcon(spot.privacy === 'private' ? 'private' : (spot.groupId === myGroupId ? 'group' : 'public')) }).bindPopup(popupContent);
+      var marker = L.marker([spot.lat, spot.lng], { icon: createIcon(spot.privacy === 'private' ? 'private' : (spot.privacy === 'group' ? 'group' : 'public')) }).bindPopup(popupContent);
       marker.spotDocId = spot.docId;
       marker.addTo(map);
       activeMarkers[spot.docId] = marker;
     }
 
-    // 写真アップロード & データ保存
     async function saveData() {
+      if (!currentUid) {
+        alert('認証処理中のため少々お待ちください。');
+        return;
+      }
+
       var fileInput = document.getElementById('file-photo');
       var rawFile = fileInput.files[0];
       var rating = document.querySelector('input[name="rating"]:checked')?.value || 3;
@@ -608,48 +621,12 @@
           facility: document.getElementById('chk-facility').checked
         };
 
-        // 🔒 プライベート（自分のみ）の場合はローカル保存
-        if (privacy === 'private') {
-          let base64Image = '';
-          if (rawFile) {
-            const compressedBlob = await compressImage(rawFile, 800, 0.6);
-            base64Image = await new Promise(res => {
-              const reader = new FileReader();
-              reader.onload = e => res(e.target.result);
-              reader.readAsDataURL(compressedBlob);
-            });
-          }
-
-          const privateSpot = {
-            docId: 'private_' + Date.now(),
-            lat: lat,
-            lng: lng,
-            rating: parseInt(rating),
-            comment: comment,
-            privacy: 'private',
-            userName: myNickname,
-            userId: myUserId,
-            groupId: 'private',
-            imageUrl: base64Image,
-            features: features,
-            createdAt: new Date().toISOString()
-          };
-
-          savePrivateSpot(privateSpot);
-          refreshMapAndList();
-          closeForm();
-          resetFormInputs();
-          alert('自分のみ（非公開）として保存しました。');
-          return;
-        }
-
-        // オンライン（Firebase）へ保存
         let imageUrl = '';
-        let imagePath = ''; // 削除時に連動させるためのストレージパス
+        let imagePath = ''; 
         if (rawFile) {
           document.getElementById('loading-text').innerText = '画像を圧縮・アップロード中...';
           const compressedBlob = await compressImage(rawFile, 1024, 0.75);
-          imagePath = `toilet_photos/${Date.now()}_${myUserId}.jpg`;
+          imagePath = `toilet_photos/${currentUid}/${Date.now()}.jpg`;
           const storageRef = storage.ref(imagePath);
           const snapshot = await storageRef.put(compressedBlob);
           imageUrl = await snapshot.ref.getDownloadURL();
@@ -662,15 +639,22 @@
           comment: comment,
           privacy: privacy,
           userName: myNickname,
-          userId: myUserId, // 端末固有IDを追加
-          groupId: myGroupId,
+          userId: currentUid,
           imageUrl: imageUrl,
-          imagePath: imagePath, // ファイルパス保持
+          imagePath: imagePath,
           features: features,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await db.collection('toiletSpots').add(newSpot);
+        // パス切り替え保存
+        if (privacy === 'public') {
+          await db.collection('toiletSpots').add(newSpot);
+        } else if (privacy === 'group') {
+          await db.collection('groups').doc(myGroupId).collection('toiletSpots').add(newSpot);
+        } else if (privacy === 'private') {
+          await db.collection('users').doc(currentUid).collection('toiletSpots').add(newSpot);
+        }
+
         closeForm();
         resetFormInputs();
       } catch (error) {
@@ -691,42 +675,42 @@
       document.getElementById('chk-facility').checked = false;
     }
 
-    // スポット削除処理（Firebase Storage連動削除 & 本人確認チェック）
-    async function deleteSpot(docId, privacy, spotUserId) {
-      if (privacy !== 'private' && spotUserId && spotUserId !== myUserId) {
-        alert('自分が投稿した記録のみ削除できます。');
-        return;
+    function getDocRef(docId, pathType) {
+      if (pathType === 'public') {
+        return db.collection('toiletSpots').doc(docId);
+      } else if (pathType === 'group') {
+        return db.collection('groups').doc(myGroupId).collection('toiletSpots').doc(docId);
+      } else if (pathType === 'private') {
+        return db.collection('users').doc(currentUid).collection('toiletSpots').doc(docId);
       }
+      return null;
+    }
 
+    async function deleteSpot(docId, pathType) {
       if (confirm('この記録を削除しますか？')) {
-        if (privacy === 'private' || docId.startsWith('private_')) {
-          deletePrivateSpot(docId);
-          refreshMapAndList();
-        } else {
-          document.getElementById('loading-text').innerText = '削除中...';
-          document.getElementById('loading').style.display = 'flex';
-          try {
-            const docRef = db.collection('toiletSpots').doc(docId);
-            const docSnap = await docRef.get();
-            if (docSnap.exists) {
-              const data = docSnap.data();
-              // 画像があればStorageからも削除
-              if (data.imagePath) {
-                try {
-                  await storage.ref(data.imagePath).delete();
-                } catch (e) {
-                  console.warn('画像の削除に失敗したか、ファイルが存在しません:', e);
-                }
-              }
-              await docRef.delete();
+        document.getElementById('loading-text').innerText = '削除中...';
+        document.getElementById('loading').style.display = 'flex';
+        try {
+          const docRef = getDocRef(docId, pathType);
+          if (!docRef) throw new Error('参照の取得に失敗しました。');
+
+          const docSnap = await docRef.get();
+          if (docSnap.exists) {
+            const data = docSnap.data();
+            if (data.userId !== currentUid) {
+              alert('本人の投稿のみ削除できます。');
+              return;
             }
-            refreshMapAndList();
-          } catch (error) {
-            alert('削除に失敗しました: ' + error.message);
-          } finally {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('loading-text').innerText = '接続中...';
+            if (data.imagePath) {
+              try { await storage.ref(data.imagePath).delete(); } catch (e) {}
+            }
+            await docRef.delete();
           }
+        } catch (error) {
+          alert('削除に失敗しました: ' + error.message);
+        } finally {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('loading-text').innerText = '接続中...';
         }
       }
     }
@@ -747,45 +731,18 @@
         for (const cb of checkboxes) {
           const docId = cb.value;
           const spot = allSpots.find(s => s.docId === docId);
-          if (spot) {
-            if (spot.privacy === 'private' || docId.startsWith('private_')) {
-              deletePrivateSpot(docId);
-            } else if (!spot.userId || spot.userId === myUserId) {
+          if (spot && spot.userId === currentUid) {
+            const docRef = getDocRef(docId, spot.pathType);
+            if (docRef) {
               if (spot.imagePath) {
                 try { await storage.ref(spot.imagePath).delete(); } catch (e) {}
               }
-              await db.collection('toiletSpots').doc(docId).delete();
+              await docRef.delete();
             }
           }
         }
-        refreshMapAndList();
       } catch (error) {
-        alert('一括削除処理の一部に失敗しました: ' + error.message);
-      } finally {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('loading-text').innerText = '接続中...';
-      }
-    }
-
-    async function deleteAllGroupSpots() {
-      if (!confirm(`本当にグループ「${myGroupId}」のデータをすべて一括削除しますか？`)) return;
-
-      document.getElementById('loading-text').innerText = 'グループ全削除中...';
-      document.getElementById('loading').style.display = 'flex';
-
-      try {
-        const snapshot = await db.collection('toiletSpots').where('groupId', '==', myGroupId).get();
-        for (const doc of snapshot.docs) {
-          const data = doc.data();
-          if (data.imagePath) {
-            try { await storage.ref(data.imagePath).delete(); } catch (e) {}
-          }
-          await doc.ref.delete();
-        }
-        closeSettings();
-        alert('グループデータを全削除しました。');
-      } catch (e) {
-        alert('削除に失敗しました: ' + e.message);
+        alert('一括削除処理に一部失敗しました: ' + error.message);
       } finally {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('loading-text').innerText = '接続中...';
@@ -823,14 +780,12 @@
         return matchesText && matchesFilter;
       });
 
-      // ソート処理 (評価順 / 距離順 / 新着順)
       filtered.sort(function(a, b) {
         if (sortMethod === 'highest') {
           return b.rating - a.rating;
         } else if (sortMethod === 'nearest') {
           return getDistanceMeters(a.lat, a.lng) - getDistanceMeters(b.lat, b.lng);
         } else {
-          // 新着順
           var getTime = function(item) {
             if (!item.createdAt) return 0;
             if (typeof item.createdAt === 'string') return new Date(item.createdAt).getTime();
@@ -855,15 +810,20 @@
         if (spot.privacy === 'private') {
           badgeClass = 'badge-private';
           badgeText = '🔒 自分のみ';
-        } else if (spot.groupId === myGroupId) {
+        } else if (spot.privacy === 'group') {
           badgeClass = 'badge-group';
           badgeText = '👥 グループ';
         }
 
         var tagsHtml = renderFeatureTags(spot.features);
-        var imgHtml = spot.imageUrl ? `<img src="${spot.imageUrl}" class="spot-img" onclick="window.open('${spot.imageUrl}')">` : '';
+        var safeImgUrl = escapeHTML(spot.imageUrl);
+        var imgHtml = safeImgUrl ? `<img src="${safeImgUrl}" class="spot-img" onclick="window.open('${safeImgUrl}')">` : '';
         var distStr = calculateDistanceStr(spot.lat, spot.lng);
         var distBadge = distStr ? `<span class="distance-tag">📍 約 ${distStr}</span>` : '';
+
+        var isOwner = spot.userId === currentUid;
+        var deleteBtnHtml = isOwner ? 
+          `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}', '${spot.pathType}')">🗑️ 削除</button>` : '';
 
         if (index === 2) {
           html += `
@@ -879,7 +839,7 @@
           <div class="list-item">
             <div class="list-header">
               <label style="display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" class="spot-checkbox" value="${spot.docId}" style="transform: scale(1.2);">
+                <input type="checkbox" class="spot-checkbox" value="${spot.docId}" ${!isOwner ? 'disabled' : ''} style="transform: scale(1.2);">
                 <span class="list-stars">${stars}</span>
               </label>
               ${distBadge}
@@ -887,12 +847,12 @@
             </div>
             ${tagsHtml}
             ${imgHtml}
-            <div class="list-comment"><b>${spot.comment || 'コメントなし'}</b></div>
-            <div class="list-user">投稿者: <b>${spot.userName || '名無し'}</b></div>
+            <div class="list-comment"><b>${escapeHTML(spot.comment || 'コメントなし')}</b></div>
+            <div class="list-user">投稿者: <b>${escapeHTML(spot.userName || '名無し')}</b></div>
             <div class="list-actions">
               <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}')">📍 地図</button>
               <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat}, ${spot.lng})">🧭 ナビ起動</button>
-              <button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}', '${spot.privacy}', '${spot.userId || ''}')">🗑️ 削除</button>
+              ${deleteBtnHtml}
             </div>
           </div>
         `;
@@ -909,7 +869,6 @@
       }
     }
 
-    // 現在地表示 ＆ エラーハンドリング強化版
     function updateCurrentLocation(isInitial = false) {
       if (!navigator.geolocation) {
         if (!isInitial) alert("お使いのブラウザは位置情報をサポートしていません。");
@@ -937,14 +896,13 @@
         function(err) {
           console.warn("位置情報の取得失敗:", err.message);
           if (!isInitial) {
-            alert("現在地の取得に失敗しました。端末の位置情報設定がオンになっているか確認してください。");
+            alert("現在地の取得に失敗しました。端末の位置情報設定を確認してください。");
           }
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
       );
     }
 
-    // 初回起動時の現在地取得
     updateCurrentLocation(true);
 
     var locateControl = L.control({ position: 'topright' });
@@ -1002,8 +960,8 @@
       localStorage.setItem('user_group', myGroupId);
       updateProfileUI();
       closeSettings();
+      setupRealtimeListeners();
       alert('設定を保存しました。');
-      location.reload();
     }
   </script>
 </body>
