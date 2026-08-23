@@ -181,11 +181,13 @@
 </head>
 <body>
 
-  <!-- ヘッダー設定バー -->
+  <!-- ヘッダー設定バー (グループ表示切替機能を追加) -->
   <div id="header-settings">
-    <div>
-      👤 <span id="disp-nickname">ゲスト</span> 
-      | 👥 グループ: <b id="disp-group">未設定</b>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span>👤 <span id="disp-nickname">ゲスト</span></span>
+      <select id="disp-group-select" onchange="changeDisplayGroup()" style="padding: 4px; font-size: 12px; border-radius: 4px; border: none; outline: none; background: #fff; color: #333;">
+        <option value="all">🌐 すべて表示</option>
+      </select>
     </div>
     <button class="settings-btn" onclick="openSettings()">設定</button>
   </div>
@@ -203,7 +205,6 @@
     <div class="filter-chip" data-feature="washlet" onclick="toggleFilter(this)">🚽 温水洗浄便座</div>
     <div class="filter-chip" data-feature="open24h" onclick="toggleFilter(this)">⏰ 24時間</div>
     <div class="filter-chip" data-feature="facility" onclick="toggleFilter(this)">🏪 施設/コンビニ</div>
-    <div class="filter-chip" data-feature="privateOnly" onclick="toggleFilter(this)">🔒 自分のみ</div>
   </div>
   
   <div id="loading">
@@ -254,7 +255,6 @@
       <div class="privacy-group">
         <label><input type="radio" name="privacy" value="group" checked onchange="toggleGroupSelect()"> 👥 グループのみ共有</label>
         
-        <!-- 追加: 投稿先グループ選択用のセレクトボックス -->
         <select id="select-post-group" style="margin-left: 25px; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; width: calc(100% - 25px); box-sizing: border-box;"></select>
         
         <label><input type="radio" name="privacy" value="public" onchange="toggleGroupSelect()"> 🌐 全体公開（みんなで共有）</label>
@@ -303,7 +303,7 @@
       <input type="text" id="input-nickname" placeholder="例：たろう">
     </div>
     
-    <!-- 追加・変更: 複数グループの管理UI -->
+    <!-- 複数グループの管理UI -->
     <div class="form-group">
       <label>参加中のグループID（合言葉）</label>
       <div id="group-list-container" style="margin-bottom:10px; font-size:13px; color:#555;">
@@ -333,7 +333,7 @@
   </div>
 
   <script>
-    // Firebase設定 (※公開環境へのAPIキーのハードコーディングにはご注意ください。必要に応じて環境変数等を検討してください。)
+    // Firebase設定
     const firebaseConfig = {
       apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
       authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
@@ -358,7 +358,6 @@
       if (storedGroups) {
         myGroupIds = JSON.parse(storedGroups);
       } else {
-        // 過去バージョンの単一グループデータがあれば移行
         const oldGroup = localStorage.getItem('user_group');
         if (oldGroup && oldGroup !== 'free') {
           myGroupIds = [oldGroup];
@@ -370,6 +369,7 @@
     }
 
     let activeFilters = [];
+    let currentDisplayGroup = 'all'; // 現在表示しているグループの管理
 
     // XSS 対策エスケープ関数
     function escapeHTML(str) {
@@ -382,10 +382,36 @@
         .replace(/'/g, '&#39;');
     }
 
+    // 表示グループの切り替え処理
+    function changeDisplayGroup() {
+      currentDisplayGroup = document.getElementById('disp-group-select').value;
+      refreshMapAndList();
+    }
+
+    // ヘッダーUIの更新
     function updateProfileUI() {
       document.getElementById('disp-nickname').innerText = myNickname;
-      const groupText = myGroupIds.length > 0 ? `${myGroupIds.length}個のグループ` : '未設定';
-      document.getElementById('disp-group').innerText = groupText;
+      
+      const groupSelect = document.getElementById('disp-group-select');
+      const currentValue = groupSelect.value;
+      
+      // セレクトボックスの中身を生成
+      let optionsHtml = '<option value="all">🌐 すべて表示</option>';
+      myGroupIds.forEach(groupId => {
+        optionsHtml += `<option value="${escapeHTML(groupId)}">👥 ${escapeHTML(groupId)}</option>`;
+      });
+      optionsHtml += '<option value="publicOnly">🌐 全体公開のみ</option>';
+      optionsHtml += '<option value="privateOnly">🔒 自分のみ</option>';
+      
+      groupSelect.innerHTML = optionsHtml;
+      
+      // 以前の選択状態を維持する
+      if (currentValue && [...groupSelect.options].some(opt => opt.value === currentValue)) {
+        groupSelect.value = currentValue;
+      } else {
+        currentDisplayGroup = 'all';
+        groupSelect.value = 'all';
+      }
     }
     updateProfileUI();
 
@@ -508,7 +534,6 @@
       });
     }
 
-    // ■ 各ルール階層（全体 / 複数のグループ / 自分のみ）からデータ受信
     function setupRealtimeListeners() {
       unsubscribers.forEach(unsub => unsub());
       unsubscribers = [];
@@ -535,19 +560,17 @@
         }, err => console.error(err))
       );
 
-      // ② グループ（登録されているすべてのグループを並列で監視）
+      // ② グループ
       if (myGroupIds.length > 0) {
         myGroupIds.forEach(groupId => {
           unsubscribers.push(
             db.collection('groups').doc(groupId).collection('toiletSpots').onSnapshot(snap => {
-              // 取得時にgroupIdも付与してメモリ上で管理
               groupSpotsMap[groupId] = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', groupId: groupId, ...doc.data() }));
               updateAll();
             }, err => console.error(err))
           );
         });
       } else {
-        // グループが1つもなくても合成処理は呼び出す
         updateAll();
       }
 
@@ -572,11 +595,23 @@
       activeMarkers = {};
 
       allSpots.forEach(function(spot) {
+        // グループ・表示切替によるフィルター
+        var isVisibleByGroup = true;
+        if (currentDisplayGroup === 'publicOnly') {
+          isVisibleByGroup = (spot.privacy === 'public');
+        } else if (currentDisplayGroup === 'privateOnly') {
+          isVisibleByGroup = (spot.privacy === 'private');
+        } else if (currentDisplayGroup !== 'all') {
+          isVisibleByGroup = (spot.privacy === 'group' && spot.groupId === currentDisplayGroup);
+        }
+
+        // 機能（設備）によるフィルター
         var matchesFilter = activeFilters.every(function(f) {
           if (f === 'privateOnly') return spot.privacy === 'private';
           return spot.features && spot.features[f] === true;
         });
-        if (matchesFilter) { 
+
+        if (isVisibleByGroup && matchesFilter) { 
           addMarkerToMap(spot); 
         }
       });
@@ -671,7 +706,6 @@
 
       if (!tempMarker) return;
 
-      // ■ 投稿先のグループ判定
       var targetGroup = null;
       if (privacy === 'group') {
         if (myGroupIds.length === 0) {
@@ -712,7 +746,7 @@
           rating: parseInt(rating),
           comment: comment,
           privacy: privacy,
-          groupId: targetGroup, // 新規追加: どのグループに投稿したかを記録
+          groupId: targetGroup,
           userName: myNickname,
           userId: currentUid,
           imageUrl: imageUrl,
@@ -721,7 +755,6 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        // パス切り替え保存
         if (privacy === 'public') {
           await db.collection('toiletSpots').add(newSpot);
         } else if (privacy === 'group') {
@@ -750,7 +783,6 @@
       document.getElementById('chk-facility').checked = false;
     }
 
-    // ■ スポットオブジェクトから正しい参照パスを取得する関数
     function getDocRef(spot) {
       if (spot.pathType === 'public') {
         return db.collection('toiletSpots').doc(spot.docId);
@@ -850,13 +882,24 @@
       var sortMethod = document.getElementById('sort-box').value;
 
       var filtered = allSpots.filter(function(spot) {
+        // グループ・表示切替によるフィルター
+        var isVisibleByGroup = true;
+        if (currentDisplayGroup === 'publicOnly') {
+          isVisibleByGroup = (spot.privacy === 'public');
+        } else if (currentDisplayGroup === 'privateOnly') {
+          isVisibleByGroup = (spot.privacy === 'private');
+        } else if (currentDisplayGroup !== 'all') {
+          isVisibleByGroup = (spot.privacy === 'group' && spot.groupId === currentDisplayGroup);
+        }
+
         var matchesText = (spot.comment || '').toLowerCase().includes(searchQuery) ||
                           (spot.userName || '').toLowerCase().includes(searchQuery);
         var matchesFilter = activeFilters.every(function(f) {
           if (f === 'privateOnly') return spot.privacy === 'private';
           return spot.features && spot.features[f] === true;
         });
-        return matchesText && matchesFilter;
+
+        return isVisibleByGroup && matchesText && matchesFilter;
       });
 
       filtered.sort(function(a, b) {
@@ -1018,7 +1061,6 @@
       openForm();
     });
 
-    // ■ フォーム開閉とラジオボタン連動の処理
     function toggleGroupSelect() {
       const selectGroup = document.getElementById('select-post-group');
       const isGroupChecked = document.querySelector('input[name="privacy"]:checked').value === 'group';
@@ -1049,7 +1091,6 @@
       }
     }
 
-    // ■ 設定画面のグループ管理処理
     function renderGroupSettings() {
       const container = document.getElementById('group-list-container');
       if (myGroupIds.length === 0) {
