@@ -533,7 +533,7 @@
             </div>
             ${tagsHtml}
             ${imgHtml}
-            <div class="list-comment"><b>${escapeHTML(spot.comment || t('noComment'))}</b></div>
+            <div class="list-comment"><b>${escapeHTML(spot.comment || t('noComment')).replace(/\n/g, '<br>')}</b>
             <div class="list-user">${t('postedBy')}<b>${escapeHTML(spot.userName || t('anonymous'))}</b></div>
             <div class="list-actions">
               <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}')">${t('btnMap')}</button>
