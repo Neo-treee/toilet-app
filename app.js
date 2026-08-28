@@ -1,4 +1,3 @@
-  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
       authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
@@ -745,4 +744,3 @@
       closeSettings();
       alert(t('msgSettingsSaved'));
     }
-  </script>
