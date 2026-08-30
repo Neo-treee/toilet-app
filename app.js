@@ -1,5 +1,4 @@
-
-      apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
+     apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
       authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
       projectId: "my-toilet-app-3c2c3",
       storageBucket: "my-toilet-app-3c2c3.firebasestorage.app",
