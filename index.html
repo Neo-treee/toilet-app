@@ -268,5 +268,25 @@
   }
 </script>
 
+  <!-- コメント表示・投稿用モーダル -->
+  <div id="comment-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:#fff; width:90%; max-width:500px; max-height:80vh; border-radius:12px; padding:20px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; overflow:hidden;">
+      <div class="form-header" style="margin:0;">
+        <span class="form-title" data-i18n="commentModalTitle">コメント・レビュー一覧</span>
+        <button class="close-btn" onclick="closeCommentModal()">×</button>
+      </div>
+      
+      <!-- コメント一覧表示エリア -->
+      <div id="comment-list-container" style="flex:1; overflow-y:auto; border:1px solid #eee; padding:10px; border-radius:8px; display:flex; flex-direction:column; gap:10px;">
+        <!-- JSで動的に追加されます -->
+      </div>
+
+      <!-- コメント投稿フォーム -->
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="input-new-comment" data-i18n-placeholder="commentInputPlaceholder" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px;">
+        <button class="action-btn" onclick="submitComment()" data-i18n="postCommentBtn">送信</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
