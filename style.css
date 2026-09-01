@@ -23,7 +23,22 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
 .filter-chip.active { background: #007bff; color: white; border-color: #007bff; font-weight: bold; }
 
 #content-area { flex: 1; position: relative; overflow: hidden; }
-#map { height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+
+/* ▼▼▼ ここが変更点：マップの長押し選択対策 ▼▼▼ */
+#map { 
+  height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; 
+  -webkit-touch-callout: none; /* iOS Safari の長押しメニューを無効化 */
+  -webkit-user-select: none;   /* Safari でのテキスト選択を無効化 */
+  user-select: none;           /* 一般的なブラウザでのテキスト選択を無効化 */
+}
+
+/* マップ内のUI要素も念のため選択不可にする */
+#map * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* ▲▲▲ 変更点はここまで ▲▲▲ */
 
 #list-view { 
   height: 100%; width: 100%; position: absolute; top: 0; left: 0; 
