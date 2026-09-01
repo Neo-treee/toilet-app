@@ -5,6 +5,7 @@
     let currentUid = null;
     let myNickname = localStorage.getItem('user_nickname') || ''; 
     let myGroups = [];
+    let currentCommentSpot = null;
     
     function loadGroupData() {
       try {
@@ -287,6 +288,7 @@
           <b>${escapeHTML(spot.comment || t('noComment'))}</b><br><br>
           <div style="display:flex; gap:4px;">
             <button style="flex:1; padding:5px 2px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openNavigation(${spot.lat}, ${spot.lng})">${t('btnNaviMap')}</button>
+            <button style="flex:1; padding:5px 2px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openCommentModal('${spot.docId}')">💬 コメント</button>
             ${deleteBtnHtml}
           </div>
         </div>
@@ -527,6 +529,7 @@
             <div class="list-actions">
               <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}')">${t('btnMap')}</button>
               <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat}, ${spot.lng})">${t('btnNavi')}</button>
+              <button class="btn-action" style="background:#007bff; color:white;" onclick="openCommentModal('${spot.docId}')">💬 コメント</button>
               ${deleteBtnHtml}
             </div>
           </div>
@@ -733,4 +736,72 @@
       updateProfileUI();
       closeSettings();
       alert(t('msgSettingsSaved'));
+    }
+
+    // --- コメント機能 ---
+    function openCommentModal(spotId) {
+      const spot = allSpots.find(s => s.docId === spotId);
+      if (!spot) return;
+
+      currentCommentSpot = spot;
+      document.getElementById('comment-modal').style.display = 'flex';
+      loadComments(spot);
+    }
+
+    function closeCommentModal() {
+      document.getElementById('comment-modal').style.display = 'none';
+      currentCommentSpot = null;
+    }
+
+    async function submitComment() {
+      const input = document.getElementById('input-new-comment');
+      const text = input.value.trim();
+      
+      if (!text) {
+        alert('コメントを入力してください');
+        return;
+      }
+      if (!currentCommentSpot) return;
+
+      let baseRef = getDocRef(currentCommentSpot);
+      if (!baseRef) return;
+
+      try {
+        await baseRef.collection('comments').add({
+          userId: currentUid,
+          userName: myNickname || t('guest'),
+          text: text,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        input.value = '';
+      } catch (e) {
+        alert('コメント送信失敗: ' + e.message);
+      }
+    }
+
+    function loadComments(spot) {
+      const container = document.getElementById('comment-list-container');
+      container.innerHTML = `<div style="padding:10px; text-align:center;">${t('loadingConnect')}</div>`;
+
+      let baseRef = getDocRef(spot);
+      if (!baseRef) return;
+
+      baseRef.collection('comments').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        if (snap.empty) {
+          container.innerHTML = `<div style="padding:10px; text-align:center; color:#888;">${t('noCommentsYet')}</div>`;
+          return;
+        }
+        
+        let html = '';
+        snap.docs.forEach(doc => {
+          const c = doc.data();
+          html += `
+            <div style="border-bottom: 1px solid #eee; padding: 6px 0;">
+              <b style="font-size:12px; color:#555;">${escapeHTML(c.userName || t('anonymous'))}</b><br>
+              <span style="font-size:14px; color:#333;">${escapeHTML(c.text)}</span>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      });
     }
