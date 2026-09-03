@@ -289,6 +289,7 @@
           <div style="display:flex; gap:4px;">
             <button style="flex:1; padding:5px 2px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openNavigation(${spot.lat}, ${spot.lng})">${t('btnNaviMap')}</button>
             <button style="flex:1; padding:5px 2px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openCommentModal('${spot.docId}')">💬 コメント</button>
+            <button style="flex:1; padding:5px 2px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openRecordForm('${spot.docId}')">📖 記録</button>
             ${deleteBtnHtml}
           </div>
         </div>
@@ -299,25 +300,17 @@
       activeMarkers[spot.docId] = marker;
     }
 
-    async function saveData() {
+    // --- 🚻 トイレ登録（みんなの共有財産）の保存処理 ---
+    async function saveRegisterData() {
       if (!currentUid) { alert(t('alertWait')); return; }
+      if (!tempMarker) { alert("位置情報が取得できません。もう一度ピンを立ててください。"); return; }
 
-      var fileInput = document.getElementById('file-photo');
+      var fileInput = document.getElementById('reg-photo');
       var rawFile = fileInput.files[0];
-      var rating = document.querySelector('input[name="rating"]:checked')?.value || 3;
-      var comment = document.getElementById('toilet-comment').value;
-      var privacy = document.querySelector('input[name="privacy"]:checked').value;
-
-      if (!tempMarker) return;
-
-      var targetGroup = null;
-      if (privacy === 'group') {
-        if (myGroups.length === 0) {
-          alert(t('alertNoGroupForPost'));
-          return;
-        }
-        targetGroup = document.getElementById('select-post-group').value;
-      }
+      var rating = document.querySelector('input[name="reg-rating"]:checked')?.value || 3;
+      var hours = document.getElementById('reg-hours').value;
+      var cleanliness = document.getElementById('reg-cleanliness').value;
+      var congestion = document.getElementById('reg-congestion').value;
 
       document.getElementById('loading-text').innerText = t('loadingSave');
       document.getElementById('loading').style.display = 'flex';
@@ -326,11 +319,9 @@
         const lat = tempMarker.getLatLng().lat;
         const lng = tempMarker.getLatLng().lng;
         const features = {
-          accessible: document.getElementById('chk-accessible').checked,
-          baby: document.getElementById('chk-baby').checked,
-          washlet: document.getElementById('chk-washlet').checked,
-          open24h: document.getElementById('chk-open24h').checked,
-          facility: document.getElementById('chk-facility').checked
+          accessible: document.getElementById('reg-accessible').checked,
+          baby: document.getElementById('reg-baby').checked,
+          washlet: document.getElementById('reg-washlet').checked
         };
 
         let imageUrl = ''; let imagePath = ''; 
@@ -344,22 +335,18 @@
         }
 
         var newSpot = {
-          lat: lat, lng: lng, rating: parseInt(rating), comment: comment,
-          privacy: privacy, groupId: targetGroup,
+          lat: lat, lng: lng, rating: parseInt(rating), comment: `営業時間: ${hours || '不明'} / 清潔度: ${cleanliness || '-'}`,
+          privacy: 'public', groupId: null,
           userName: myNickname || t('guest'), userId: currentUid, imageUrl: imageUrl, imagePath: imagePath,
-          features: features, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          features: features, hours: hours, cleanliness: cleanliness, congestion: congestion,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        if (privacy === 'public') {
-          await db.collection('toiletSpots').add(newSpot);
-        } else if (privacy === 'group') {
-          await db.collection('groups').doc(targetGroup).collection('toiletSpots').add(newSpot);
-        } else if (privacy === 'private') {
-          await db.collection('users').doc(currentUid).collection('toiletSpots').add(newSpot);
-        }
+        await db.collection('toiletSpots').add(newSpot);
 
-        closeForm();
-        resetFormInputs();
+        closeForms();
+        resetRegisterInputs();
+        alert("トイレ情報を登録しました！ご協力ありがとうございます。");
       } catch (error) {
         alert(t('alertSaveFail') + error.message);
       } finally {
@@ -368,14 +355,98 @@
       }
     }
 
-    function resetFormInputs() {
-      document.getElementById('toilet-comment').value = '';
-      document.getElementById('file-photo').value = '';
-      document.getElementById('chk-accessible').checked = false;
-      document.getElementById('chk-baby').checked = false;
-      document.getElementById('chk-washlet').checked = false;
-      document.getElementById('chk-open24h').checked = false;
-      document.getElementById('chk-facility').checked = false;
+    // --- 📖 トイレ記録（自分の思い出）の保存処理 ---
+    async function saveRecordData() {
+      if (!currentUid) { alert(t('alertWait')); return; }
+
+      const targetToiletId = document.getElementById('rec-target-toilet-id').value;
+      let lat = null, lng = null;
+
+      if (!targetToiletId) {
+        if (!tempMarker) { alert("位置情報が取得できません。もう一度ピンを立ててください。"); return; }
+        lat = tempMarker.getLatLng().lat;
+        lng = tempMarker.getLatLng().lng;
+      } else {
+        const targetSpot = allSpots.find(s => s.docId === targetToiletId);
+        if (targetSpot) {
+          lat = targetSpot.lat;
+          lng = targetSpot.lng;
+        }
+      }
+
+      var fileInput = document.getElementById('rec-photo');
+      var rawFile = fileInput.files[0];
+      var privacy = document.querySelector('input[name="rec-privacy"]:checked').value;
+      var date = document.getElementById('rec-date').value;
+      var companion = document.getElementById('rec-companion').value;
+      var memo = document.getElementById('rec-memo').value;
+
+      var targetGroup = null;
+      if (privacy === 'group') {
+        if (myGroups.length === 0) {
+          alert(t('alertNoGroupForPost'));
+          return;
+        }
+        targetGroup = myGroups[0].id; // デフォルトで最初のグループを使用、または必要に応じて選択UIを追加可能
+      }
+
+      document.getElementById('loading-text').innerText = t('loadingSave');
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        let imageUrl = ''; let imagePath = ''; 
+        if (rawFile) {
+          document.getElementById('loading-text').innerText = t('loadingImage');
+          const compressedBlob = await compressImage(rawFile, 1024, 0.75);
+          imagePath = `record_photos/${currentUid}/${Date.now()}.jpg`;
+          const storageRef = storage.ref(imagePath);
+          const snapshot = await storageRef.put(compressedBlob);
+          imageUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        var newRecord = {
+          lat: lat, lng: lng, toiletId: targetToiletId || null,
+          privacy: privacy, groupId: targetGroup,
+          date: date, companion: companion, comment: memo,
+          userName: myNickname || t('guest'), userId: currentUid, imageUrl: imageUrl, imagePath: imagePath,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (privacy === 'public') {
+          await db.collection('toiletSpots').add(newRecord);
+        } else if (privacy === 'group') {
+          await db.collection('groups').doc(targetGroup).collection('toiletSpots').add(newRecord);
+        } else if (privacy === 'private') {
+          await db.collection('users').doc(currentUid).collection('toiletSpots').add(newRecord);
+        }
+
+        closeForms();
+        resetRecordInputs();
+        alert("思い出を記録しました！");
+      } catch (error) {
+        alert(t('alertSaveFail') + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = t('loadingConnect');
+      }
+    }
+
+    function resetRegisterInputs() {
+      document.getElementById('reg-hours').value = '';
+      document.getElementById('reg-cleanliness').value = '';
+      document.getElementById('reg-congestion').value = '';
+      document.getElementById('reg-photo').value = '';
+      document.getElementById('reg-accessible').checked = false;
+      document.getElementById('reg-baby').checked = false;
+      document.getElementById('reg-washlet').checked = false;
+    }
+
+    function resetRecordInputs() {
+      document.getElementById('rec-date').value = '';
+      document.getElementById('rec-companion').value = '';
+      document.getElementById('rec-memo').value = '';
+      document.getElementById('rec-photo').value = '';
+      document.getElementById('rec-target-toilet-id').value = '';
     }
 
     function getDocRef(spot) {
@@ -438,14 +509,14 @@
     function switchTab(tabName) {
       if (tabName === 'map') {
         document.getElementById('map').style.display = 'block';
-        document.getElementById('fab-add-spot').style.display = 'flex';
+        document.getElementById('fab-container').style.display = 'flex';
         document.getElementById('list-view').style.display = 'none';
         document.getElementById('nav-map').classList.add('active');
         document.getElementById('nav-list').classList.remove('active');
         map.invalidateSize();
       } else {
         document.getElementById('map').style.display = 'none';
-        document.getElementById('fab-add-spot').style.display = 'none';
+        document.getElementById('fab-container').style.display = 'none';
         document.getElementById('list-view').style.display = 'block';
         document.getElementById('nav-list').classList.add('active');
         document.getElementById('nav-map').classList.remove('active');
@@ -530,6 +601,7 @@
               <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}')">${t('btnMap')}</button>
               <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat}, ${spot.lng})">${t('btnNavi')}</button>
               <button class="btn-action" style="background:#007bff; color:white;" onclick="openCommentModal('${spot.docId}')">💬 コメント</button>
+              <button class="btn-action" style="background:#17a2b8; color:white;" onclick="openRecordForm('${spot.docId}')">📖 記録</button>
               ${deleteBtnHtml}
             </div>
           </div>
@@ -584,35 +656,34 @@
     map.on('contextmenu', function(e) {
       if (tempMarker) map.removeLayer(tempMarker); 
       tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
-      openForm();
+      openRegisterForm();
     });
 
-    function addPinAtCenter() {
+    // --- フォーム開閉用ヘルパー ---
+    function openRegisterForm() {
+      closeForms();
       const center = map.getCenter();
       if (tempMarker) map.removeLayer(tempMarker);
       tempMarker = L.marker(center, { draggable: true }).addTo(map);
-      openForm();
+      tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
+      document.getElementById('input-form-register').style.display = 'block';
     }
 
-    function toggleGroupSelect() {
-      const selectGroup = document.getElementById('select-post-group');
-      const isGroupChecked = document.querySelector('input[name="privacy"]:checked').value === 'group';
-      selectGroup.style.display = (isGroupChecked && myGroups.length > 0) ? 'block' : 'none';
-    }
-
-    function openForm() { 
-      const selectGroup = document.getElementById('select-post-group');
-      if (myGroups.length > 0) {
-        selectGroup.innerHTML = myGroups.map(g => `<option value="${escapeHTML(g.id)}">${escapeHTML(g.name)}</option>`).join('');
-      } else {
-        selectGroup.innerHTML = `<option value="">${t('groupNotSet')}</option>`;
+    function openRecordForm(toiletId = null) {
+      closeForms();
+      document.getElementById('rec-target-toilet-id').value = toiletId || '';
+      if (!toiletId) {
+        const center = map.getCenter();
+        if (tempMarker) map.removeLayer(tempMarker);
+        tempMarker = L.marker(center, { draggable: true }).addTo(map);
+        tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
       }
-      toggleGroupSelect();
-      document.getElementById('input-form').classList.add('open'); 
+      document.getElementById('input-form-record').style.display = 'block';
     }
-    
-    function closeForm() {
-      document.getElementById('input-form').classList.remove('open');
+
+    function closeForms() {
+      document.getElementById('input-form-register').style.display = 'none';
+      document.getElementById('input-form-record').style.display = 'none';
       if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
     }
 
