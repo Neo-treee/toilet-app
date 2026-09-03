@@ -1,51 +1,150 @@
-body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f4; display: flex; flex-direction: column; height: 100vh; }
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f4f4f4;
+  display: flex;
+  flex-direction: column;
+  /* モバイルアドレスバーの変動に対応 */
+  height: 100vh;
+  height: 100dvh;
+}
 
 #header-settings {
-  background: #333; color: white; padding: 10px 15px; font-size: 13px;
-  display: flex; justify-content: space-between; align-items: center; z-index: 1001;
+  background: #333;
+  color: white;
+  padding: 10px 15px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1001;
 }
-.settings-btn { background: #555; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+
+.settings-btn {
+  background: #555;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
 
 #search-location-bar {
-  background: #007bff; padding: 8px 12px; display: flex; gap: 8px; z-index: 1001;
+  background: #007bff;
+  padding: 8px 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 1001;
 }
-.loc-input { flex: 1; padding: 8px 12px; border: none; border-radius: 20px; font-size: 13px; outline: none; }
-.loc-btn { background: #0056b3; color: white; border: none; padding: 0 15px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; }
+
+/* iOSのフォーカス時自動ズームを防ぐため 16px に統一 */
+.loc-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 20px;
+  font-size: 16px;
+  outline: none;
+}
+
+.loc-btn {
+  background: #0056b3;
+  color: white;
+  border: none;
+  padding: 0 15px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
 
 #filter-bar {
-  background: #fff; padding: 8px 12px; border-bottom: 1px solid #ddd;
-  display: flex; gap: 8px; overflow-x: auto; z-index: 1000; white-space: nowrap;
+  background: #fff;
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  z-index: 1000;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch; /* iOSでのスクロールをスムーズに */
 }
+
+#filter-bar::-webkit-scrollbar {
+  display: none; /* スクロールバーを非表示 */
+}
+
 .filter-chip {
-  background: #f0f0f0; border: 1px solid #ccc; padding: 4px 10px;
-  border-radius: 16px; font-size: 12px; cursor: pointer; user-select: none;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
 }
-.filter-chip.active { background: #007bff; color: white; border-color: #007bff; font-weight: bold; }
 
-#content-area { flex: 1; position: relative; overflow: hidden; }
+.filter-chip.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+  font-weight: bold;
+}
 
-/* ▼▼▼ ここが変更点：マップの長押し選択対策 ▼▼▼ */
+#content-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ▼ マップの長押し・選択対策強化 ▼ */
 #map { 
-  height: 100%; width: 100%; position: absolute; top: 0; left: 0; z-index: 1; 
-  -webkit-touch-callout: none; /* iOS Safari の長押しメニューを無効化 */
-  -webkit-user-select: none;   /* Safari でのテキスト選択を無効化 */
-  user-select: none;           /* 一般的なブラウザでのテキスト選択を無効化 */
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1; 
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-x pan-y; /* タップのズーム遅延防止と自然なパン操作 */
 }
 
-/* マップ内のUI要素も念のため選択不可にする */
 #map * {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
 }
-/* ▲▲▲ 変更点はここまで ▲▲▲ */
+/* ▲ 対策ここまで ▲ */
 
-#list-view { 
-  height: 100%; width: 100%; position: absolute; top: 0; left: 0; 
-  background: #f4f4f4; z-index: 2; display: none; overflow-y: auto; padding-bottom: 70px;
+/* 中央ガイドピン（地図の中心位置を示すガイド） */
+#center-pin-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  font-size: 32px;
+  pointer-events: none;
+  z-index: 800;
+  text-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
-/* 右下のボタンコンテナ（縦並び用） */
+#list-view { 
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0; 
+  background: #f4f4f4;
+  z-index: 2;
+  display: none;
+  overflow-y: auto;
+  padding-bottom: 80px;
+}
+
+/* 右下のFABコンテナ */
 #fab-container {
   position: fixed;
   bottom: 130px;
@@ -54,9 +153,13 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: opacity 0.2s ease;
 }
 
-/* 登録・記録ボタン共通スタイル */
+#fab-container.hidden {
+  display: none;
+}
+
 .fab-btn {
   background-color: #28a745;
   color: white;
@@ -71,117 +174,412 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-  transition: transform 0.2s;
+  transition: transform 0.15s ease, background-color 0.2s;
 }
+
 .fab-btn:active {
   transform: scale(0.95);
 }
 
-/* 記録ボタンの色を少し変える場合（必要に応じて） */
 #fab-add-record {
   background-color: #007bff;
 }
 
-
 .ad-container-banner {
-  background: #e9ecef; border-top: 1px solid #ccc; text-align: center;
-  padding: 5px; font-size: 10px; color: #777; z-index: 1001; min-height: 50px;
-  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  background: #e9ecef;
+  border-top: 1px solid #ccc;
+  text-align: center;
+  padding: 5px;
+  padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px)); /* Safe Area対応 */
+  font-size: 10px;
+  color: #777;
+  z-index: 1001;
+  min-height: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
+
 .ad-container-card {
-  background: #fff3cd; border: 1px dashed #ffebaa; margin: 10px 15px; padding: 15px;
-  border-radius: 8px; text-align: center; color: #856404; font-size: 12px;
+  background: #fff3cd;
+  border: 1px dashed #ffebaa;
+  margin: 10px 15px;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  color: #856404;
+  font-size: 12px;
 }
-.ad-link { color: #856404; font-weight: bold; text-decoration: underline; display: block; margin-top: 5px; }
+
+.ad-link {
+  color: #856404;
+  font-weight: bold;
+  text-decoration: underline;
+  display: block;
+  margin-top: 5px;
+}
 
 #bottom-nav {
-  height: 55px; background: white; border-top: 1px solid #ccc;
-  display: flex; justify-content: space-around; align-items: center; z-index: 1001; user-select: none;
+  height: 55px;
+  background: white;
+  border-top: 1px solid #ccc;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1001;
+  user-select: none;
+  padding-bottom: env(safe-area-inset-bottom, 0px); /* Safe Area対応 */
 }
-.nav-btn { flex: 1; text-align: center; padding: 8px; color: #888; font-size: 13px; cursor: pointer; }
-.nav-btn.active { color: #007bff; font-weight: bold; }
+
+.nav-btn {
+  flex: 1;
+  text-align: center;
+  padding: 8px;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.nav-btn.active {
+  color: #007bff;
+  font-weight: bold;
+}
 
 .controls-area {
-  background: white; padding: 12px 15px; border-bottom: 1px solid #ddd;
-  position: sticky; top: 0; z-index: 10; display: flex; gap: 8px; align-items: center;
+  background: white;
+  padding: 12px 15px;
+  border-bottom: 1px solid #ddd;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
-.search-input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-.sort-select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: white; }
-.btn-bulk-delete { padding: 8px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; }
+
+/* iOSの自動ズーム防止のため 16px */
+.search-input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.sort-select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  font-size: 14px;
+}
+
+.btn-bulk-delete {
+  padding: 8px 10px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 12px;
+}
 
 .list-item {
-  background: white; margin: 10px 15px; padding: 15px;
-  border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background: white;
+  margin: 10px 15px;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
-.list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-.list-stars { color: #ffca08; font-size: 16px; }
-.list-badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.list-stars {
+  color: #ffca08;
+  font-size: 16px;
+}
+
+.list-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
 .badge-group { background: #e6f4ea; color: #137333; border: 1px solid #b7e1cd; }
 .badge-public { background: #fce8e6; color: #c5221f; border: 1px solid #f6c2be; }
 .badge-private { background: #f3e8ff; color: #6f42c1; border: 1px solid #d8b4fe; }
-.distance-tag { font-size: 11px; color: #007bff; font-weight: bold; margin-left: auto; margin-right: 8px;}
 
-.tag-container { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
-.feature-tag { font-size: 11px; background: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; }
-.spot-img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 6px; margin: 8px 0; cursor: pointer; }
+.distance-tag {
+  font-size: 11px;
+  color: #007bff;
+  font-weight: bold;
+  margin-left: auto;
+  margin-right: 8px;
+}
 
-.list-actions { display: flex; gap: 6px; margin-top: 10px; }
-.btn-action { flex: 1; padding: 8px 4px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; text-align: center; }
+.tag-container {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.feature-tag {
+  font-size: 11px;
+  background: #e8f0fe;
+  color: #1a73e8;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.spot-img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin: 8px 0;
+  cursor: pointer;
+  -webkit-user-drag: none; /* 画像の長押しドラッグを防止 */
+}
+
+.list-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.btn-action {
+  flex: 1;
+  padding: 8px 4px;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 11px;
+  text-align: center;
+  transition: opacity 0.15s;
+}
+
+.btn-action:active {
+  opacity: 0.8;
+}
+
 .btn-map { background: #007bff; }
 .btn-nav { background: #28a745; }
 .btn-comment { background: #17a2b8; }
 .btn-delete { background: #ff4444; }
 
-.empty-state { text-align: center; padding: 30px; color: #888; }
-
-#input-form, #settings-modal, #privacy-modal, #comment-modal {
-  position: fixed; bottom: -100%; left: 0; width: 100%; background: white;
-  z-index: 1002; border-top-left-radius: 20px; border-top-right-radius: 20px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.2); transition: bottom 0.3s ease-out;
-  padding: 20px; box-sizing: border-box; max-height: 85%; overflow-y: auto;
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  color: #888;
 }
-#input-form.open, #settings-modal.open, #privacy-modal.open, #comment-modal.open { bottom: 0; }
-.form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-.form-title { font-weight: bold; font-size: 18px; }
-.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #888; }
-.form-group { margin-bottom: 15px; }
-label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #333; }
 
-.checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.checkbox-item { font-size: 13px; display: flex; align-items: center; gap: 5px; font-weight: normal; }
+/* モーダル / ボトムシート */
+#input-form, #settings-modal, #privacy-modal, #comment-modal {
+  position: fixed;
+  bottom: -100%;
+  left: 0;
+  width: 100%;
+  background: white;
+  z-index: 1002;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+  transition: bottom 0.3s ease-out;
+  padding: 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); /* Safe Area対応 */
+  box-sizing: border-box;
+  max-height: 85dvh;
+  overflow-y: auto;
+}
 
-input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-textarea { height: 60px; resize: none; }
-.star-rating { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 5px; }
+#input-form.open, #settings-modal.open, #privacy-modal.open, #comment-modal.open {
+  bottom: 0;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.form-title {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #888;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  font-size: 14px;
+  color: #333;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.checkbox-item {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: normal;
+}
+
+/* iOS自動ズーム防止のため 16px */
+input[type="text"], textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 16px; 
+}
+
+textarea {
+  height: 60px;
+  resize: none;
+}
+
+/* 星評価用デザイン（ホバー・チェック連動を修復） */
+.star-rating {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
 .star-rating input { display: none; }
 .star-rating label { font-size: 30px; color: #ccc; cursor: pointer; margin: 0; }
-.star-rating input:checked ~ label { color: #ffca08; }
+.star-rating input:checked ~ label,
+.star-rating label:hover,
+.star-rating label:hover ~ label { 
+  color: #ffca08; 
+}
 
-.privacy-group { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
-.privacy-group label { font-weight: normal; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.privacy-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 5px;
+}
 
-.save-btn { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
-.action-btn { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-.join-btn { background-color: #007bff; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+.privacy-group label {
+  font-weight: normal;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.save-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.action-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.join-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
 
 #loading {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(255,255,255,0.85); z-index: 2000;
-  display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; color: #333;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: rgba(255,255,255,0.85);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  color: #333;
 }
 
 .custom-pin {
-  width: 30px; height: 30px; border-radius: 50%; border: 2px solid white;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.3); text-align: center; line-height: 28px; font-size: 16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  text-align: center;
+  line-height: 28px;
+  font-size: 16px;
 }
+
 .pin-group { background: #28a745; color: white; }
 .pin-public { background: #ff9800; color: white; }
 .pin-private { background: #6f42c1; color: white; }
 
-.footer-links { text-align: center; padding: 10px; font-size: 11px; color: #666; background: #fff; border-top: 1px solid #eee; }
-.footer-links a { color: #007bff; text-decoration: none; margin: 0 5px; }
+.footer-links {
+  text-align: center;
+  padding: 10px;
+  font-size: 11px;
+  color: #666;
+  background: #fff;
+  border-top: 1px solid #eee;
+}
 
-/* --- コメント機能用の追加スタイル --- */
+.footer-links a {
+  color: #007bff;
+  text-decoration: none;
+  margin: 0 5px;
+}
+
+/* --- コメント機能 --- */
 .comments-list {
   max-height: 250px;
   overflow-y: auto;
@@ -190,6 +588,7 @@ textarea { height: 60px; resize: none; }
   flex-direction: column;
   gap: 8px;
 }
+
 .comment-item {
   background: #f8f9fa;
   border: 1px solid #eee;
@@ -197,6 +596,7 @@ textarea { height: 60px; resize: none; }
   border-radius: 8px;
   font-size: 13px;
 }
+
 .comment-header {
   display: flex;
   justify-content: space-between;
@@ -204,16 +604,27 @@ textarea { height: 60px; resize: none; }
   font-size: 11px;
   margin-bottom: 4px;
 }
-.comment-author { font-weight: bold; color: #333; }
-.comment-text { color: #444; word-break: break-word; }
+
+.comment-author {
+  font-weight: bold;
+  color: #333;
+}
+
+.comment-text {
+  color: #444;
+  word-break: break-word;
+}
+
 .comment-input-area {
   display: flex;
   gap: 8px;
   align-items: center;
 }
+
 .comment-input-area input {
   flex: 1;
 }
+
 .comment-input-area button {
   padding: 10px 16px;
   background-color: #17a2b8;
