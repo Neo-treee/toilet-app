@@ -149,6 +149,14 @@
         currentDisplayGroup = 'all';
         groupSelect.value = 'all';
       }
+     const recGroupSelect = document.getElementById('rec-target-group');
+      if (recGroupSelect) {
+        let recOptionsHtml = '<option value="" disabled selected>▼ 選択してください…</option>';
+        myGroups.forEach(g => {
+          recOptionsHtml += `<option value="${escapeHTML(g.id)}">${escapeHTML(g.name)}</option>`;
+        });
+        recGroupSelect.innerHTML = recOptionsHtml;
+      }
     }
 
     const DEFAULT_LAT = 35.6812;
