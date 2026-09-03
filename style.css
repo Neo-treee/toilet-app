@@ -45,14 +45,43 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
   background: #f4f4f4; z-index: 2; display: none; overflow-y: auto; padding-bottom: 70px;
 }
 
-#fab-add-spot {
-  position: absolute; bottom: 20px; right: 20px; z-index: 999;
-  background-color: #28a745; color: white; border: none; border-radius: 50px;
-  padding: 15px 20px; font-size: 16px; font-weight: bold;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; gap: 6px;
+/* 右下のボタンコンテナ（縦並び用） */
+#fab-container {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 登録・記録ボタン共通スタイル */
+.fab-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: bold;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
   transition: transform 0.2s;
 }
-#fab-add-spot:active { transform: scale(0.95); }
+.fab-btn:active {
+  transform: scale(0.95);
+}
+
+/* 記録ボタンの色を少し変える場合（必要に応じて） */
+#fab-add-record {
+  background-color: #007bff;
+}
+
 
 .ad-container-banner {
   background: #e9ecef; border-top: 1px solid #ccc; text-align: center;
