@@ -1,525 +1,901 @@
-let map;
-let markers = [];
-let currentPositionMarker = null;
-let currentTempMarker = null;
-let db;
-let currentUser = null;
-let userProfile = { nickname: '', groups: [] };
-let activeFilters = [];
-let currentToiletData = [];
-let activeCommentSpotId = null;
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
 
-// アプリの初期化
-window.addEventListener('DOMContentLoaded', async () => {
-  initMap();
-  initFirebase();
-});
-
-// マップの初期化
-function initMap() {
-  map = L.map('map', { zoomControl: false }).setView([35.681236, 139.767125], 15);
-  
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 19
-  }).addTo(map);
-
-  L.control.zoom({ position: 'topright' }).addTo(map);
-
-  // マップクリック時：調整用ピンを着地
-  map.on('click', (e) => {
-    setTempMarker(e.latlng.lat, e.latlng.lng);
-  });
-
-  // 現在地の取得
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        map.setView([lat, lng], 16);
-        
-        currentPositionMarker = L.marker([lat, lng], {
-          icon: L.divIcon({
-            className: 'current-pos-icon',
-            html: '<div style="background:#007bff; width:14px; height:14px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5);"></div>',
-            iconSize: [14, 14]
-          })
-        }).addTo(map).bindPopup(t('currentLocationPopup'));
-      },
-      () => { console.log(t('msgLocFail')); }
-    );
-  }
-}
-
-// 調整用ドラッグ可能ピンの設定
-function setTempMarker(lat, lng) {
-  if (currentTempMarker) {
-    map.removeLayer(currentTempMarker);
-  }
-  currentTempMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
-  
-  currentTempMarker.on('dragend', function (e) {
-    const newPos = e.target.getLatLng();
-    focusMapWithPadding(newPos.lat, newPos.lng);
-  });
-
-  focusMapWithPadding(lat, lng);
-}
-
-// フォーム表示時にピンが隠れないよう表示位置を上にずらす
-function focusMapWithPadding(lat, lng) {
-  const isFormOpen = document.getElementById('input-form-register').style.display !== 'none' ||
-                     document.getElementById('input-form-record').style.display !== 'none';
-  
-  if (isFormOpen) {
-    // 画面下部にフォームがあるため、中心を少しずらして見やすくする
-    map.panTo([lat, lng]);
-    map.panBy([0, 120], { animate: true });
-  } else {
-    map.panTo([lat, lng]);
-  }
-}
-
-// Firebaseの初期化と認証
-function initFirebase() {
-  if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-    db = firebase.firestore();
+    let currentUid = null;
+    let myNickname = localStorage.getItem('user_nickname') || ''; 
+    let myGroups = [];
+    let currentCommentSpot = null;
     
-    firebase.auth().signInAnonymously().then(res => {
-      currentUser = res.user;
-      loadUserProfile();
-      loadSpots();
-    }).catch(err => {
-      alert(t('errAuth') + err.message);
-    });
-  }
-}
+    function loadGroupData() {
+      try {
+        const storedV2 = localStorage.getItem('user_groups_v2');
+        if (storedV2) {
+          myGroups = JSON.parse(storedV2);
+        } else {
+          const storedV1 = localStorage.getItem('user_groups');
+          if (storedV1) {
+            const oldIds = JSON.parse(storedV1);
+            myGroups = oldIds.map(id => ({ id: id, name: id }));
+            localStorage.setItem('user_groups_v2', JSON.stringify(myGroups));
+          }
+        }
+      } catch (e) {
+        myGroups = [];
+      }
+    }
+    loadGroupData();
 
-// ユーザープロファイルの読み込み
-async function loadUserProfile() {
-  if (!currentUser || !db) return;
-  const doc = await db.collection('users').doc(currentUser.uid).get();
-  if (doc.exists) {
-    userProfile = doc.data();
-  } else {
-    userProfile = { nickname: t('guest'), groups: [] };
-    await db.collection('users').doc(currentUser.uid).set(userProfile);
-  }
-  document.getElementById('disp-nickname').innerText = userProfile.nickname || t('guest');
-  updateGroupDropdowns();
-}
+    let activeFilters = [];
+    let currentDisplayGroup = 'all';
 
-// グループドロップダウンの更新
-function updateGroupDropdowns() {
-  const dispSelect = document.getElementById('disp-group-select');
-  const recSelect = document.getElementById('rec-group-select');
-  
-  dispSelect.innerHTML = `<option value="all">${t('optAll')}</option><option value="private">${t('optPrivateOnly')}</option><option value="public">${t('optPublicOnly')}</option>`;
-  recSelect.innerHTML = `<option value="">選択してください...</option>`;
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
 
-  if (userProfile.groups && userProfile.groups.length > 0) {
-    userProfile.groups.forEach(g => {
-      dispSelect.innerHTML += `<option value="${g.id}">👥 ${g.name}</option>`;
-      recSelect.innerHTML += `<option value="${g.id}">👥 ${g.name}</option>`;
-    });
-  }
-}
+    function getGroupName(groupId) {
+      const group = myGroups.find(g => g.id === groupId);
+      return group ? group.name : groupId; 
+    }
 
-// データの読み込み＆マップピンの描画
-async function loadSpots() {
-  if (!db) return;
-  
-  db.collection('spots').onSnapshot(snapshot => {
-    currentToiletData = [];
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
+    function changeDisplayGroup() {
+      currentDisplayGroup = document.getElementById('disp-group-select').value;
+      refreshMapAndList();
+    }
 
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      data.id = doc.id;
+    function updateProfileUI() {
+      document.getElementById('disp-nickname').innerText = myNickname || t('guest');
+      const groupSelect = document.getElementById('disp-group-select');
+      const currentValue = groupSelect.value;
       
-      // アクセス権限フィルタリング (自分のみ, グループ, 全体)
-      if (canViewSpot(data)) {
-        currentToiletData.push(data);
-        addMapMarker(data);
+      let optionsHtml = `<option value="all">${t('optAll')}</option>`;
+      myGroups.forEach(g => {
+        optionsHtml += `<option value="${escapeHTML(g.id)}">👥 ${escapeHTML(g.name)}</option>`;
+      });
+      optionsHtml += `<option value="publicOnly">${t('optPublicOnly')}</option>`;
+      optionsHtml += `<option value="privateOnly">${t('optPrivateOnly')}</option>`;
+      
+      groupSelect.innerHTML = optionsHtml;
+      
+      if (currentValue && [...groupSelect.options].some(opt => opt.value === currentValue)) {
+        groupSelect.value = currentValue;
+      } else {
+        currentDisplayGroup = 'all';
+        groupSelect.value = 'all';
+      }
+    }
+
+    const DEFAULT_LAT = 35.6812;
+    const DEFAULT_LNG = 139.7671;
+    var map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LNG], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+
+    var tempMarker = null;
+    var allSpots = [];
+    var activeMarkers = {};
+    var currentLat = null;
+    var currentLng = null;
+    var currentMarker = null;
+    var unsubscribers = [];
+
+    window.addEventListener('DOMContentLoaded', updateProfileUI);
+
+    auth.signInAnonymously().catch(function(error) {
+      alert(t('errAuth') + error.message);
+    });
+
+    auth.onAuthStateChanged(function(user) {
+      if (user) {
+        currentUid = user.uid;
+        setupRealtimeListeners();
       }
     });
 
-    renderList();
-  });
-}
-
-// 閲覧権限チェック
-function canViewSpot(data) {
-  if (data.privacy === 'public' || !data.privacy) return true;
-  if (data.uid === currentUser?.uid) return true;
-  if (data.privacy === 'group' && userProfile.groups?.some(g => g.id === data.groupId)) return true;
-  return false;
-}
-
-// マップにピンを追加
-function addMapMarker(data) {
-  if (!data.lat || !data.lng) return;
-
-  // フィルタリング処理
-  if (activeFilters.length > 0) {
-    const hasAllFilters = activeFilters.every(f => data.facilities && data.facilities[f]);
-    if (!hasAllFilters) return;
-  }
-
-  const marker = L.marker([data.lat, data.lng]).addTo(map);
-  
-  let popupContent = `
-    <div style="font-size:13px; line-height:1.5;">
-      <b>${data.type === 'record' ? '📖 思い出の記録' : '🚻 トイレ情報'}</b><br>
-      ${data.rating ? '評価: ' + '★'.repeat(data.rating) + '☆'.repeat(5 - data.rating) + '<br>' : ''}
-      ${data.comment || data.memo ? (data.comment || data.memo) + '<br>' : ''}
-      <button onclick="openCommentModal('${data.id}')" style="margin-top:6px; background:#007bff; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px;">${t('btnOpenComments')}</button>
-    </div>
-  `;
-
-  marker.bindPopup(popupContent);
-  markers.push(marker);
-}
-
-// フィルター切替
-function toggleFilter(el) {
-  const feature = el.getAttribute('data-feature');
-  el.classList.toggle('active');
-
-  if (el.classList.contains('active')) {
-    activeFilters.push(feature);
-  } else {
-    activeFilters = activeFilters.filter(f => f !== feature);
-  }
-
-  loadSpots();
-}
-
-// トイレ登録フォームを開く
-function openRegisterForm() {
-  closeForms();
-  document.getElementById('input-form-register').style.display = 'block';
-  
-  const center = map.getCenter();
-  setTempMarker(center.lat, center.lng);
-}
-
-// 思い出記録フォームを開く
-function openRecordForm() {
-  closeForms();
-  document.getElementById('input-form-record').style.display = 'block';
-  toggleRecordGroupSelect();
-
-  const center = map.getCenter();
-  setTempMarker(center.lat, center.lng);
-}
-
-// 公開範囲に応じたグループ選択エリアの表示制御
-function toggleRecordGroupSelect() {
-  const privacyVal = document.querySelector('input[name="rec-privacy"]:checked')?.value;
-  const groupSection = document.getElementById('rec-group-section');
-  if (privacyVal === 'group') {
-    groupSection.style.display = 'block';
-  } else {
-    groupSection.style.display = 'none';
-  }
-}
-
-// フォームを閉じる
-function closeForms() {
-  document.getElementById('input-form-register').style.display = 'none';
-  document.getElementById('input-form-record').style.display = 'none';
-  if (currentTempMarker) {
-    map.removeLayer(currentTempMarker);
-    currentTempMarker = null;
-  }
-}
-
-// トイレデータの保存（全体公開向け）
-async function saveRegisterData() {
-  if (!currentTempMarker) {
-    alert('地図上をタップして場所を指定してください。');
-    return;
-  }
-
-  const pos = currentTempMarker.getLatLng();
-  const rating = document.querySelector('input[name="reg-rating"]:checked')?.value || 0;
-  
-  const facilities = {
-    accessible: document.getElementById('reg-accessible').checked,
-    baby: document.getElementById('reg-baby').checked,
-    washlet: document.getElementById('reg-washlet').checked,
-    western: document.getElementById('reg-western').checked,
-    open24h: document.getElementById('reg-open24h').checked,
-    facility: document.getElementById('reg-facility').checked,
-    station: document.getElementById('reg-station').checked,
-    parking: document.getElementById('reg-parking').checked
-  };
-
-  const payload = {
-    type: 'register',
-    lat: pos.lat,
-    lng: pos.lng,
-    facilities: facilities,
-    rating: parseInt(rating),
-    comment: document.getElementById('reg-comment').value,
-    privacy: 'public',
-    uid: currentUser.uid,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-
-  showLoading(t('loadingSave'));
-  try {
-    await db.collection('spots').add(payload);
-    hideLoading();
-    closeForms();
-  } catch (err) {
-    hideLoading();
-    alert(t('alertSaveFail') + err.message);
-  }
-}
-
-// 思い出記録データの保存
-async function saveRecordData() {
-  if (!currentTempMarker) {
-    alert('地図上をタップして場所を指定してください。');
-    return;
-  }
-
-  const pos = currentTempMarker.getLatLng();
-  const privacy = document.querySelector('input[name="rec-privacy"]:checked')?.value || 'private';
-  const groupId = privacy === 'group' ? document.getElementById('rec-group-select').value : '';
-  const rating = document.querySelector('input[name="rec-rating"]:checked')?.value || 0;
-
-  if (privacy === 'group' && !groupId) {
-    alert(t('alertNoGroupForPost'));
-    return;
-  }
-
-  const facilities = {
-    accessible: document.getElementById('rec-accessible').checked,
-    baby: document.getElementById('rec-baby').checked,
-    washlet: document.getElementById('rec-washlet').checked,
-    western: document.getElementById('rec-western').checked,
-    open24h: document.getElementById('rec-open24h').checked,
-    facility: document.getElementById('rec-facility').checked,
-    station: document.getElementById('rec-station').checked,
-    parking: document.getElementById('rec-parking').checked
-  };
-
-  const payload = {
-    type: 'record',
-    lat: pos.lat,
-    lng: pos.lng,
-    privacy: privacy,
-    groupId: groupId,
-    facilities: facilities,
-    rating: parseInt(rating),
-    date: document.getElementById('rec-date').value,
-    companion: document.getElementById('rec-companion').value,
-    memo: document.getElementById('rec-memo').value,
-    uid: currentUser.uid,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-
-  showLoading(t('loadingSave'));
-  try {
-    await db.collection('spots').add(payload);
-    hideLoading();
-    closeForms();
-  } catch (err) {
-    hideLoading();
-    alert(t('alertSaveFail') + err.message);
-  }
-}
-
-// 一覧画面のレンダリング
-function renderList() {
-  const container = document.getElementById('list-container');
-  const kw = document.getElementById('search-box').value.toLowerCase();
-  const sort = document.getElementById('sort-box').value;
-
-  let list = [...currentToiletData];
-
-  // キーワード検索
-  if (kw) {
-    list = list.filter(item => 
-      (item.comment && item.comment.toLowerCase().includes(kw)) ||
-      (item.memo && item.memo.toLowerCase().includes(kw))
-    );
-  }
-
-  // ソート
-  if (sort === 'highest') {
-    list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-  } else if (sort === 'nearest' && currentPositionMarker) {
-    const myPos = currentPositionMarker.getLatLng();
-    list.sort((a, b) => {
-      const distA = L.latLng(a.lat, a.lng).distanceTo(myPos);
-      const distB = L.latLng(b.lat, b.lng).distanceTo(myPos);
-      return distA - distB;
-    });
-  }
-
-  if (list.length === 0) {
-    container.innerHTML = `<div style="text-align:center; padding:20px; color:#999;">${t('emptyList')}</div>`;
-    return;
-  }
-
-  container.innerHTML = list.map(item => `
-    <div class="spot-card">
-      <div class="spot-info">
-        <span class="spot-badge badge-${item.privacy || 'public'}">${item.privacy === 'private' ? t('badgePrivate') : item.privacy === 'group' ? t('badgeGroup') : t('badgePublic')}</span>
-        <b>${item.type === 'record' ? '📖 ' + (item.memo || '無題') : ' ' + (item.comment || 'トイレ')}</b>
-        <div>${item.rating ? '★'.repeat(item.rating) : ''}</div>
-        <div style="font-size:11px; color:#666; margin-top:4px;">${item.date || ''} ${item.companion ? 'with ' + item.companion : ''}</div>
-        <button onclick="focusOnMap(${item.lat}, ${item.lng})" style="margin-top:6px; padding:4px 8px; font-size:11px; background:#007bff; color:#fff; border:none; border-radius:4px;">${t('btnMap')}</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-// 地図を対象の場所へフォーカス
-function focusOnMap(lat, lng) {
-  switchTab('map');
-  map.setView([lat, lng], 17);
-}
-
-// タブの切り替え
-function switchTab(tab) {
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  if (tab === 'map') {
-    document.getElementById('nav-map').classList.add('active');
-    document.getElementById('list-view').style.display = 'none';
-  } else {
-    document.getElementById('nav-list').classList.add('active');
-    document.getElementById('list-view').style.display = 'block';
-    renderList();
-  }
-}
-
-// 場所の検索 (Nominatim API)
-async function searchLocation() {
-  const query = document.getElementById('input-search-location').value;
-  if (!query) return;
-
-  showLoading(t('loadingSearch'));
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    hideLoading();
-
-    if (data && data.length > 0) {
-      const lat = parseFloat(data[0].lat);
-      const lon = parseFloat(data[0].lon);
-      map.setView([lat, lon], 16);
-    } else {
-      alert(t('errSearch'));
+    function createIcon(privacyType) {
+      var className = 'custom-pin pin-public';
+      var iconSymbol = '🚽';
+      if (privacyType === 'private') {
+        className = 'custom-pin pin-private';
+        iconSymbol = '🔒';
+      } else if (privacyType === 'group') {
+        className = 'custom-pin pin-group';
+      }
+      return L.divIcon({ className: className, html: iconSymbol, iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -15] });
     }
-  } catch (err) {
-    hideLoading();
-    alert(t('errSearchSys'));
-  }
-}
 
-// 設定モーダル
-function openSettings() { document.getElementById('settings-modal').style.display = 'block'; }
-function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
-
-// 設定の保存
-async function saveSettings() {
-  const nick = document.getElementById('input-nickname').value;
-  if (nick) {
-    userProfile.nickname = nick;
-    document.getElementById('disp-nickname').innerText = nick;
-    if (currentUser) {
-      await db.collection('users').doc(currentUser.uid).update({ nickname: nick });
+    function openNavigation(lat, lng) {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      window.open(url, '_blank');
     }
-  }
-  closeSettings();
-}
 
-// グループ作成
-async function createNewGroup() {
-  const name = document.getElementById('input-create-group-name').value;
-  if (!name) return;
+    function calculateDistanceStr(lat2, lng2) {
+      if (!currentLat || !currentLng) return null;
+      var p1 = L.latLng(currentLat, currentLng);
+      var p2 = L.latLng(lat2, lng2);
+      var meters = p1.distanceTo(p2);
+      return meters < 1000 ? `${Math.round(meters)}m` : `${(meters / 1000).toFixed(1)}km`;
+    }
 
-  showLoading(t('loadingGroupCreate'));
-  try {
-    const ref = await db.collection('groups').add({
-      name: name,
-      createdBy: currentUser.uid,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    function getDistanceMeters(lat2, lng2) {
+      if (!currentLat || !currentLng) return Infinity;
+      return L.latLng(currentLat, currentLng).distanceTo(L.latLng(lat2, lng2));
+    }
+
+    async function searchLocation() {
+      const query = document.getElementById('input-search-location').value;
+      if (!query) return;
+      document.getElementById('loading-text').innerText = t('loadingSearch');
+      document.getElementById('loading').style.display = 'flex';
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&email=info@toilet-app.com`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          map.setView([parseFloat(data[0].lat), parseFloat(data[0].lon)], 16);
+        } else {
+          alert(t('errSearch'));
+        }
+      } catch (e) {
+        alert(t('errSearchSys'));
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = t('loadingConnect');
+      }
+    }
+
+    function compressImage(file, maxWidth = 1024, quality = 0.75) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = event => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            let width = img.width; let height = img.height;
+            if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+          };
+          img.onerror = error => reject(error);
+        };
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    function setupRealtimeListeners() {
+      unsubscribers.forEach(unsub => unsub());
+      unsubscribers = [];
+
+      let publicSpots = [];
+      let groupSpotsMap = {};
+      let privateSpots = [];
+
+      const updateAll = () => {
+        let groupSpots = [];
+        Object.values(groupSpotsMap).forEach(spots => { groupSpots = groupSpots.concat(spots); });
+        allSpots = [...publicSpots, ...groupSpots, ...privateSpots];
+        refreshMapAndList();
+        document.getElementById('loading').style.display = 'none';
+      };
+
+      unsubscribers.push(
+        db.collection('toiletSpots').onSnapshot(snap => {
+          publicSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'public', ...doc.data() }));
+          updateAll();
+        }, err => console.error(err))
+      );
+
+      if (myGroups.length > 0) {
+        myGroups.forEach(g => {
+          unsubscribers.push(
+            db.collection('groups').doc(g.id).collection('toiletSpots').onSnapshot(snap => {
+              groupSpotsMap[g.id] = snap.docs.map(doc => ({ docId: doc.id, pathType: 'group', groupId: g.id, ...doc.data() }));
+              updateAll();
+            }, err => console.error(err))
+          );
+        });
+      } else {
+        updateAll();
+      }
+
+      if (currentUid) {
+        unsubscribers.push(
+          db.collection('users').doc(currentUid).collection('toiletSpots').onSnapshot(snap => {
+            privateSpots = snap.docs.map(doc => ({ docId: doc.id, pathType: 'private', ...doc.data() }));
+            updateAll();
+          }, err => console.error(err))
+        );
+      }
+    }
+
+    function refreshMapAndList() {
+      Object.keys(activeMarkers).forEach(key => { if (activeMarkers[key]) map.removeLayer(activeMarkers[key]); });
+      activeMarkers = {};
+
+      allSpots.forEach(spot => {
+        var isVisibleByGroup = true;
+        if (currentDisplayGroup === 'publicOnly') isVisibleByGroup = (spot.privacy === 'public');
+        else if (currentDisplayGroup === 'privateOnly') isVisibleByGroup = (spot.privacy === 'private');
+        else if (currentDisplayGroup !== 'all') isVisibleByGroup = (spot.privacy === 'group' && spot.groupId === currentDisplayGroup);
+
+        var matchesFilter = activeFilters.every(f => {
+          if (f === 'privateOnly') return spot.privacy === 'private';
+          return spot.features && spot.features[f] === true;
+        });
+
+        if (isVisibleByGroup && matchesFilter) addMarkerToMap(spot);
+      });
+
+      if (document.getElementById('list-view').style.display === 'block') renderList();
+    }
+
+    function toggleFilter(el) {
+      var feature = el.getAttribute('data-feature');
+      if (el.classList.contains('active')) {
+        el.classList.remove('active');
+        activeFilters = activeFilters.filter(f => f !== feature);
+      } else {
+        el.classList.add('active');
+        activeFilters.push(feature);
+      }
+      refreshMapAndList();
+    }
+
+    function renderFeatureTags(features) {
+      if (!features) return '';
+      var html = '<div class="tag-container">';
+      if (features.accessible) html += `<span class="feature-tag">多目的</span>`;
+      if (features.baby) html += `<span class="feature-tag">オムツ台</span>`;
+      if (features.washlet) html += `<span class="feature-tag">温水洗浄便座</span>`;
+      if (features.western) html += `<span class="feature-tag">洋式</span>`;
+      if (features.open24h) html += `<span class="feature-tag">24時間</span>`;
+      if (features.facility) html += `<span class="feature-tag">施設/コンビニ</span>`;
+      if (features.station) html += `<span class="feature-tag">駅</span>`;
+      if (features.parking) html += `<span class="feature-tag">駐車場</span>`;
+      html += '</div>';
+      return html;
+    }
+
+    function addMarkerToMap(spot) {
+      if (!spot.lat || !spot.lng) return;
+
+      var stars = '★'.repeat(spot.rating || 3) + '☆'.repeat(5 - (spot.rating || 3));
+      var badgeHtml = '';
+      if (spot.privacy === 'private') {
+        badgeHtml = `<span style="color:#6f42c1;">${t('badgePrivateIcon')}</span>`;
+      } else if (spot.privacy === 'group') {
+        const groupName = escapeHTML(getGroupName(spot.groupId));
+        badgeHtml = `<span style="color:green;">${t('badgeGroupIcon')}${groupName}]</span>`;
+      } else {
+        badgeHtml = `<span style="color:orange;">${t('badgePublicIcon')}</span>`;
+      }
+
+      var tagsHtml = renderFeatureTags(spot.features);
+      var safeImgUrl = escapeHTML(spot.imageUrl);
+      var imgHtml = safeImgUrl ? `<img src="${safeImgUrl}" class="spot-img" onclick="window.open('${safeImgUrl}')">` : '';
+      var distStr = calculateDistanceStr(spot.lat, spot.lng);
+      var distHtml = distStr ? `<div style="font-size:11px; color:#007bff; font-weight:bold; margin-bottom:4px;">${t('distCurrent')}${distStr}</div>` : '';
+      var isOwner = spot.userId === currentUid;
+      var deleteBtnHtml = isOwner ? `<button style="flex:1; padding:5px 2px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="deleteSpot('${spot.docId}')">${t('btnDel')}</button>` : '';
+
+      var popupContent = `
+        <div style="font-size:13px; min-width:170px; max-width:210px;">
+          ${badgeHtml} <b>${escapeHTML(spot.userName || t('anonymous'))}</b><br>
+          <span style="color:#ffca08; font-size:14px;">${stars}</span><br>
+          ${distHtml}
+          ${tagsHtml}
+          ${imgHtml}
+          <b>${escapeHTML(spot.comment || t('noComment'))}</b><br><br>
+          <div style="display:flex; gap:4px;">
+            <button style="flex:1; padding:5px 2px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openNavigation(${spot.lat}, ${spot.lng})">${t('btnNaviMap')}</button>
+            <button style="flex:1; padding:5px 2px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openCommentModal('${spot.docId}')">💬 コメント</button>
+            <button style="flex:1; padding:5px 2px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openRecordForm('${spot.docId}')">📖 記録</button>
+            ${deleteBtnHtml}
+          </div>
+        </div>
+      `;
+
+      var marker = L.marker([spot.lat, spot.lng], { icon: createIcon(spot.privacy) }).bindPopup(popupContent);
+      marker.addTo(map);
+      activeMarkers[spot.docId] = marker;
+    }
+
+    // --- 🚻 トイレ登録の保存処理 ---
+    async function saveRegisterData() {
+      if (!currentUid) { alert(t('alertWait')); return; }
+      if (!tempMarker) { alert("位置情報が取得できません。もう一度ピンを立ててください。"); return; }
+
+      var fileInput = document.getElementById('reg-photo');
+      var rawFile = fileInput.files[0];
+      var rating = document.querySelector('input[name="reg-rating"]:checked')?.value || 3;
+      var hours = document.getElementById('reg-hours').value;
+      var cleanliness = document.getElementById('reg-cleanliness').value;
+      var congestion = document.getElementById('reg-congestion').value;
+
+      document.getElementById('loading-text').innerText = t('loadingSave');
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        const lat = tempMarker.getLatLng().lat;
+        const lng = tempMarker.getLatLng().lng;
+        const features = {
+          accessible: document.getElementById('reg-accessible').checked,
+          baby: document.getElementById('reg-baby').checked,
+          washlet: document.getElementById('reg-washlet').checked,
+          western: document.getElementById('reg-western').checked,
+          open24h: document.getElementById('reg-open24h').checked,
+          facility: document.getElementById('reg-facility').checked,
+          station: document.getElementById('reg-station').checked,
+          parking: document.getElementById('reg-parking').checked
+        };
+
+        let imageUrl = ''; let imagePath = ''; 
+        if (rawFile) {
+          document.getElementById('loading-text').innerText = t('loadingImage');
+          const compressedBlob = await compressImage(rawFile, 1024, 0.75);
+          imagePath = `toilet_photos/${currentUid}/${Date.now()}.jpg`;
+          const storageRef = storage.ref(imagePath);
+          const snapshot = await storageRef.put(compressedBlob);
+          imageUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        var newSpot = {
+          lat: lat, lng: lng, rating: parseInt(rating), comment: `営業時間: ${hours || '不明'} / 清潔度: ${cleanliness || '-'}`,
+          privacy: 'public', groupId: null,
+          userName: myNickname || t('guest'), userId: currentUid, imageUrl: imageUrl, imagePath: imagePath,
+          features: features, hours: hours, cleanliness: cleanliness, congestion: congestion,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('toiletSpots').add(newSpot);
+
+        closeForms();
+        resetRegisterInputs();
+        alert("トイレ情報を登録しました！ご協力ありがとうございます。");
+      } catch (error) {
+        alert(t('alertSaveFail') + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = t('loadingConnect');
+      }
+    }
+
+    // --- 📖 トイレ記録（自分の思い出）の保存処理 ---
+    async function saveRecordData() {
+      if (!currentUid) { alert(t('alertWait')); return; }
+
+      const targetToiletId = document.getElementById('rec-target-toilet-id').value;
+      let lat = null, lng = null;
+
+      if (!targetToiletId) {
+        if (!tempMarker) { alert("位置情報が取得できません。もう一度ピンを立ててください。"); return; }
+        lat = tempMarker.getLatLng().lat;
+        lng = tempMarker.getLatLng().lng;
+      } else {
+        const targetSpot = allSpots.find(s => s.docId === targetToiletId);
+        if (targetSpot) {
+          lat = targetSpot.lat;
+          lng = targetSpot.lng;
+        }
+      }
+
+      var fileInput = document.getElementById('rec-photo');
+      var rawFile = fileInput.files[0];
+      var rating = document.querySelector('input[name="rec-rating"]:checked')?.value || 3;
+      var privacy = document.querySelector('input[name="rec-privacy"]:checked').value;
+      var date = document.getElementById('rec-date').value;
+      var companion = document.getElementById('rec-companion').value;
+      var memo = document.getElementById('rec-memo').value;
+
+      var targetGroup = null;
+      if (privacy === 'group') {
+        if (myGroups.length === 0) {
+          alert(t('alertNoGroupForPost'));
+          return;
+        }
+        targetGroup = myGroups[0].id;
+      }
+
+      document.getElementById('loading-text').innerText = t('loadingSave');
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        let imageUrl = ''; let imagePath = ''; 
+        if (rawFile) {
+          document.getElementById('loading-text').innerText = t('loadingImage');
+          const compressedBlob = await compressImage(rawFile, 1024, 0.75);
+          imagePath = `record_photos/${currentUid}/${Date.now()}.jpg`;
+          const storageRef = storage.ref(imagePath);
+          const snapshot = await storageRef.put(compressedBlob);
+          imageUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        var newRecord = {
+          lat: lat, lng: lng, toiletId: targetToiletId || null,
+          rating: parseInt(rating),
+          privacy: privacy, groupId: targetGroup,
+          date: date, companion: companion, comment: memo,
+          userName: myNickname || t('guest'), userId: currentUid, imageUrl: imageUrl, imagePath: imagePath,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (privacy === 'public') {
+          await db.collection('toiletSpots').add(newRecord);
+        } else if (privacy === 'group') {
+          await db.collection('groups').doc(targetGroup).collection('toiletSpots').add(newRecord);
+        } else if (privacy === 'private') {
+          await db.collection('users').doc(currentUid).collection('toiletSpots').add(newRecord);
+        }
+
+        closeForms();
+        resetRecordInputs();
+        alert("思い出を記録しました！");
+      } catch (error) {
+        alert(t('alertSaveFail') + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = t('loadingConnect');
+      }
+    }
+
+    function resetRegisterInputs() {
+      document.getElementById('reg-hours').value = '';
+      document.getElementById('reg-cleanliness').value = '';
+      document.getElementById('reg-congestion').value = '';
+      document.getElementById('reg-photo').value = '';
+      document.getElementById('reg-accessible').checked = false;
+      document.getElementById('reg-baby').checked = false;
+      document.getElementById('reg-washlet').checked = false;
+      document.getElementById('reg-western').checked = false;
+      document.getElementById('reg-open24h').checked = false;
+      document.getElementById('reg-facility').checked = false;
+      document.getElementById('reg-station').checked = false;
+      document.getElementById('reg-parking').checked = false;
+    }
+
+    function resetRecordInputs() {
+      document.getElementById('rec-date').value = '';
+      document.getElementById('rec-companion').value = '';
+      document.getElementById('rec-memo').value = '';
+      document.getElementById('rec-photo').value = '';
+      document.getElementById('rec-target-toilet-id').value = '';
+    }
+
+    function getDocRef(spot) {
+      if (spot.pathType === 'public') return db.collection('toiletSpots').doc(spot.docId);
+      else if (spot.pathType === 'group') return db.collection('groups').doc(spot.groupId).collection('toiletSpots').doc(spot.docId);
+      else if (spot.pathType === 'private') return db.collection('users').doc(currentUid).collection('toiletSpots').doc(spot.docId);
+      return null;
+    }
+
+    async function deleteSpot(docId) {
+      if (confirm(t('confirmDelete'))) {
+        document.getElementById('loading-text').innerText = t('loadingDelete');
+        document.getElementById('loading').style.display = 'flex';
+        try {
+          const spot = allSpots.find(s => s.docId === docId);
+          if (!spot) throw new Error(t('errNotFound'));
+          const docRef = getDocRef(spot);
+          if (!docRef) throw new Error(t('errRefFail'));
+
+          const docSnap = await docRef.get();
+          if (docSnap.exists) {
+            if (docSnap.data().userId !== currentUid) { alert(t('errNotOwner')); return; }
+            if (docSnap.data().imagePath) { try { await storage.ref(docSnap.data().imagePath).delete(); } catch (e) {} }
+            await docRef.delete();
+          }
+        } catch (error) {
+          alert(t('errDeleteFail') + error.message);
+        } finally {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('loading-text').innerText = t('loadingConnect');
+        }
+      }
+    }
+
+    async function deleteSelectedSpots() {
+      const checkboxes = document.querySelectorAll('.spot-checkbox:checked');
+      if (checkboxes.length === 0) { alert(t('alertCheckDel')); return; }
+      if (!confirm(`${t('confirmBulkDelete1')}${checkboxes.length}${t('confirmBulkDelete2')}`)) return;
+
+      document.getElementById('loading-text').innerText = t('loadingBulkDelete');
+      document.getElementById('loading').style.display = 'flex';
+      try {
+        for (const cb of checkboxes) {
+          const spot = allSpots.find(s => s.docId === cb.value);
+          if (spot && spot.userId === currentUid) {
+            const docRef = getDocRef(spot);
+            if (docRef) {
+              if (spot.imagePath) { try { await storage.ref(spot.imagePath).delete(); } catch (e) {} }
+              await docRef.delete();
+            }
+          }
+        }
+      } catch (error) { alert(t('errBulkFail') + error.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('loading-text').innerText = t('loadingConnect');
+      }
+    }
+
+    function switchTab(tabName) {
+      if (tabName === 'map') {
+        document.getElementById('map').style.display = 'block';
+        document.getElementById('fab-container').style.display = 'flex';
+        document.getElementById('list-view').style.display = 'none';
+        document.getElementById('nav-map').classList.add('active');
+        document.getElementById('nav-list').classList.remove('active');
+        map.invalidateSize();
+      } else {
+        document.getElementById('map').style.display = 'none';
+        document.getElementById('fab-container').style.display = 'none';
+        document.getElementById('list-view').style.display = 'block';
+        document.getElementById('nav-list').classList.add('active');
+        document.getElementById('nav-map').classList.remove('active');
+        renderList();
+      }
+    }
+
+    function renderList() {
+      var container = document.getElementById('list-container');
+      var searchQuery = document.getElementById('search-box').value.toLowerCase();
+      var sortMethod = document.getElementById('sort-box').value;
+
+      var filtered = allSpots.filter(spot => {
+        var isVisibleByGroup = true;
+        if (currentDisplayGroup === 'publicOnly') isVisibleByGroup = (spot.privacy === 'public');
+        else if (currentDisplayGroup === 'privateOnly') isVisibleByGroup = (spot.privacy === 'private');
+        else if (currentDisplayGroup !== 'all') isVisibleByGroup = (spot.privacy === 'group' && spot.groupId === currentDisplayGroup);
+
+        var matchesText = (spot.comment || '').toLowerCase().includes(searchQuery) || (spot.userName || '').toLowerCase().includes(searchQuery);
+        var matchesFilter = activeFilters.every(f => {
+          if (f === 'privateOnly') return spot.privacy === 'private';
+          return spot.features && spot.features[f] === true;
+        });
+
+        return isVisibleByGroup && matchesText && matchesFilter;
+      });
+
+      filtered.sort((a, b) => {
+        if (sortMethod === 'highest') return (b.rating || 0) - (a.rating || 0);
+        else if (sortMethod === 'nearest') return getDistanceMeters(a.lat, a.lng) - getDistanceMeters(b.lat, b.lng);
+        else {
+          var getTime = item => {
+            if (!item.createdAt) return 0;
+            if (typeof item.createdAt === 'string') return new Date(item.createdAt).getTime();
+            if (item.createdAt.seconds) return item.createdAt.seconds * 1000;
+            return 0;
+          };
+          return getTime(b) - getTime(a);
+        }
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-state">${t('emptyList')}</div>`;
+        return;
+      }
+
+      var html = '';
+      filtered.forEach((spot, index) => {
+        var stars = '★'.repeat(spot.rating || 3) + '☆'.repeat(5 - (spot.rating || 3));
+        var badgeClass = 'badge-public'; var badgeText = t('badgePublic');
+        
+        if (spot.privacy === 'private') { badgeClass = 'badge-private'; badgeText = t('badgePrivate'); }
+        else if (spot.privacy === 'group') { badgeClass = 'badge-group'; badgeText = `${t('badgeGroup')}${escapeHTML(getGroupName(spot.groupId))}`; }
+
+        var tagsHtml = renderFeatureTags(spot.features);
+        var safeImgUrl = escapeHTML(spot.imageUrl);
+        var imgHtml = safeImgUrl ? `<img src="${safeImgUrl}" class="spot-img" onclick="window.open('${safeImgUrl}')">` : '';
+        var distStr = calculateDistanceStr(spot.lat, spot.lng);
+        var distBadge = distStr ? `<span class="distance-tag">${t('distPrefix')}${distStr}</span>` : '';
+        var isOwner = spot.userId === currentUid;
+        var deleteBtnHtml = isOwner ? `<button class="btn-action btn-delete" onclick="deleteSpot('${spot.docId}')">${t('btnDel')}</button>` : '';
+
+        if (index === 2) {
+          html += `<div class="ad-container-card"><b>${t('sponsorPRTitle')}</b><br>${t('sponsorPRDesc')}<br><a href="https://www.amazon.co.jp/" target="_blank" class="ad-link">${t('sponsorPRLink')}</a></div>`;
+        }
+
+        html += `
+          <div class="list-item">
+            <div class="list-header">
+              <label style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" class="spot-checkbox" value="${spot.docId}" ${!isOwner ? 'disabled' : ''} style="transform: scale(1.2);">
+                <span class="list-stars">${stars}</span>
+              </label>
+              ${distBadge}
+              <span class="list-badge ${badgeClass}">${badgeText}</span>
+            </div>
+            ${tagsHtml}
+            ${imgHtml}
+            <div class="list-comment"><b>${escapeHTML(spot.comment || t('noComment')).replace(/\n/g, '<br>')}</b></div>
+            <div class="list-user">${t('postedBy')}<b>${escapeHTML(spot.userName || t('anonymous'))}</b></div>
+            <div class="list-actions">
+              <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}')">${t('btnMap')}</button>
+              <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat}, ${spot.lng})">${t('btnNavi')}</button>
+              <button class="btn-action" style="background:#007bff; color:white;" onclick="openCommentModal('${spot.docId}')">💬 コメント</button>
+              <button class="btn-action" style="background:#17a2b8; color:white;" onclick="openRecordForm('${spot.docId}')">📖 記録</button>
+              ${deleteBtnHtml}
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function viewOnMap(docId) {
+      switchTab('map');
+      var target = allSpots.find(s => s.docId === docId);
+      if (target) {
+        map.setView([target.lat, target.lng], 17);
+        if (activeMarkers[docId]) activeMarkers[docId].openPopup();
+      }
+    }
+
+    function updateCurrentLocation(isInitial = false) {
+      if (!navigator.geolocation) { if (!isInitial) alert(t('msgLocNotSupported')); return; }
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          currentLat = pos.coords.latitude; currentLng = pos.coords.longitude;
+          if (currentMarker) currentMarker.setLatLng([currentLat, currentLng]);
+          else currentMarker = L.circleMarker([currentLat, currentLng], { radius: 8, fillColor: "#007bff", color: "#fff", weight: 2, fillOpacity: 0.8 }).addTo(map).bindPopup(t('currentLocationPopup'));
+          if (isInitial) map.setView([currentLat, currentLng], 15);
+          refreshMapAndList();
+        },
+        function(err) {
+          console.warn("Location error:", err.message);
+          if (!isInitial) alert(t('msgLocFail'));
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+      );
+    }
+    updateCurrentLocation(true);
+
+    var locateControl = L.control({ position: 'topright' });
+    locateControl.onAdd = function(map) {
+      var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      div.style.backgroundColor = 'white'; div.style.width = '34px'; div.style.height = '34px';
+      div.style.lineHeight = '34px'; div.style.textAlign = 'center'; div.style.cursor = 'pointer'; div.style.fontSize = '18px';
+      div.title = 'Current Location'; div.innerHTML = '🎯';
+      div.onclick = function(e) {
+        L.DomEvent.stopPropagation(e);
+        if (currentLat && currentLng) { map.flyTo([currentLat, currentLng], 16); updateCurrentLocation(false); }
+        else updateCurrentLocation(false);
+      };
+      return div;
+    };
+    locateControl.addTo(map);
+
+    map.on('contextmenu', function(e) {
+      if (tempMarker) map.removeLayer(tempMarker); 
+      tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
+      openRegisterForm();
     });
 
-    const newGroup = { id: ref.id, name: name };
-    userProfile.groups = userProfile.groups || [];
-    userProfile.groups.push(newGroup);
+    // --- フォーム開閉用ヘルパー（フォームが下に隠れないように中央位置をオフセット調整） ---
+    function openRegisterForm() {
+      closeForms();
+      const center = map.getCenter();
+      if (tempMarker) map.removeLayer(tempMarker);
+      tempMarker = L.marker(center, { draggable: true }).addTo(map);
+      tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
+      document.getElementById('input-form-register').style.display = 'block';
+      setTimeout(() => {
+        map.invalidateSize();
+        map.panBy([0, 150], { animate: true }); // 下部のフォームに隠れないよう地図をずらす
+      }, 50);
+    }
 
-    await db.collection('users').doc(currentUser.uid).update({ groups: userProfile.groups });
+    function openRecordForm(toiletId = null) {
+      closeForms();
+      document.getElementById('rec-target-toilet-id').value = toiletId || '';
+      if (!toiletId) {
+        const center = map.getCenter();
+        if (tempMarker) map.removeLayer(tempMarker);
+        tempMarker = L.marker(center, { draggable: true }).addTo(map);
+        tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
+      }
+      document.getElementById('input-form-record').style.display = 'block';
+      setTimeout(() => {
+        map.invalidateSize();
+        map.panBy([0, 150], { animate: true }); // 下部のフォームに隠れないよう地図をずらす
+      }, 50);
+    }
 
-    hideLoading();
-    updateGroupDropdowns();
-    alert(t('msgGroupCreated1') + name + t('msgGroupCreated2'));
-  } catch (err) {
-    hideLoading();
-    alert(t('errGroupCreateFail') + err.message);
-  }
-}
+    function closeForms() {
+      document.getElementById('input-form-register').style.display = 'none';
+      document.getElementById('input-form-record').style.display = 'none';
+      if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    }
 
-// コメントモーダル
-function openCommentModal(spotId) {
-  activeCommentSpotId = spotId;
-  document.getElementById('comment-modal').style.display = 'flex';
-  loadComments(spotId);
-}
-function closeCommentModal() { document.getElementById('comment-modal').style.display = 'none'; }
+    function renderGroupSettings() {
+      const container = document.getElementById('group-list-container');
+      if (myGroups.length === 0) {
+        container.innerHTML = `<div style="padding: 10px; background: #fafafa; border-radius: 4px; text-align: center;">${t('noJoinedGroups')}</div>`;
+        return;
+      }
+      container.innerHTML = myGroups.map((g, index) => 
+        `<div style="display:flex; justify-content:space-between; align-items:center; background:#eee; padding:8px 10px; margin-bottom:5px; border-radius:4px;">
+          <div style="overflow: hidden; margin-right: 5px;">
+            <span style="font-weight:bold;">${escapeHTML(g.name)}</span><br>
+            <span style="font-size:11px; color:#555; word-break: break-all;">ID: ${escapeHTML(g.id)}</span>
+          </div>
+          <div style="display:flex; gap:4px; flex-shrink:0;">
+            <button onclick="copyGroupId('${escapeHTML(g.id)}')" style="background:#007bff; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:11px;">${t('btnCopy')}</button>
+            <button onclick="removeGroup(${index})" style="background:#ff4444; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:11px;">${t('btnLeave')}</button>
+          </div>
+        </div>`
+      ).join('');
+    }
 
-// コメント読み込み
-async function loadComments(spotId) {
-  const container = document.getElementById('comment-list-container');
-  container.innerHTML = '読み込み中...';
+    function copyGroupId(id) {
+      navigator.clipboard.writeText(id).then(() => {
+        alert(t('msgCopyOk'));
+      }).catch(err => {
+        alert(t('msgCopyFail'));
+      });
+    }
 
-  const snapshot = await db.collection('spots').doc(spotId).collection('comments').orderBy('createdAt', 'asc').get();
-  if (snapshot.empty) {
-    container.innerHTML = `<div style="text-align:center; color:#999;">${t('noCommentsYet')}</div>`;
-    return;
-  }
+    async function createNewGroup() {
+      const input = document.getElementById('input-create-group-name');
+      const groupName = input.value.trim();
+      if (!groupName) { alert(t('alertGroupNameReq')); return; }
 
-  container.innerHTML = snapshot.docs.map(doc => {
-    const c = doc.data();
-    return `<div style="border-bottom:1px solid #eee; padding:6px 0;"><b>${c.nickname || t('anonymous')}</b>: ${c.text}</div>`;
-  }).join('');
-}
+      document.getElementById('loading-text').innerText = t('loadingGroupCreate');
+      document.getElementById('loading').style.display = 'flex';
 
-// コメント送信
-async function submitComment() {
-  const input = document.getElementById('input-new-comment');
-  const text = input.value;
-  if (!text || !activeCommentSpotId) return;
+      try {
+        const docRef = await db.collection('groups').add({
+          name: groupName,
+          createdBy: currentUid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
-  await db.collection('spots').doc(activeCommentSpotId).collection('comments').add({
-    text: text,
-    nickname: userProfile.nickname || t('anonymous'),
-    uid: currentUser.uid,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
+        myGroups.push({ id: docRef.id, name: groupName });
+        input.value = '';
+        saveGroupsLocal();
+        renderGroupSettings();
+        alert(`${t('msgGroupCreated1')}${groupName}${t('msgGroupCreated2')}`);
+      } catch (e) {
+        alert(t('errGroupCreateFail') + e.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
 
-  input.value = '';
-  loadComments(activeCommentSpotId);
-}
+    async function joinGroupById() {
+      const input = document.getElementById('input-join-group-id');
+      const groupId = input.value.trim();
+      if (!groupId) { alert(t('alertGroupIdReq')); return; }
 
-// プライバシーモーダル
-function openPrivacyModal() { document.getElementById('privacy-modal').style.display = 'block'; }
-function closePrivacyModal() { document.getElementById('privacy-modal').style.display = 'none'; }
+      if (myGroups.some(g => g.id === groupId)) {
+        alert(t('alertGroupAlready'));
+        return;
+      }
 
-// ローディングインジケータ
-function showLoading(text) {
-  document.getElementById('loading-text').innerText = text;
-  document.getElementById('loading').style.display = 'flex';
-}
-function hideLoading() {
-  document.getElementById('loading').style.display = 'none';
-}
+      document.getElementById('loading-text').innerText = t('loadingGroupJoin');
+      document.getElementById('loading').style.display = 'flex';
+
+      try {
+        const doc = await db.collection('groups').doc(groupId).get();
+        if (!doc.exists) {
+          alert(t('alertGroupNotFound'));
+          return;
+        }
+
+        const data = doc.data();
+        const groupName = data.name || 'Group';
+        
+        myGroups.push({ id: groupId, name: groupName });
+        input.value = '';
+        saveGroupsLocal();
+        renderGroupSettings();
+        alert(`${t('msgGroupJoined1')}${groupName}${t('msgGroupJoined2')}`);
+      } catch (e) {
+        alert(t('errGroupJoinFail') + e.message);
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    function removeGroup(index) {
+      if(confirm(t('confirmLeaveGroup'))) {
+        myGroups.splice(index, 1);
+        saveGroupsLocal();
+        renderGroupSettings();
+      }
+    }
+
+    function saveGroupsLocal() {
+      localStorage.setItem('user_groups_v2', JSON.stringify(myGroups));
+      updateProfileUI();
+      setupRealtimeListeners();
+    }
+
+    function openSettings() {
+      document.getElementById('input-nickname').value = myNickname;
+      renderGroupSettings();
+      document.getElementById('settings-modal').classList.add('open');
+    }
+    
+    function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+    function openPrivacyModal() { document.getElementById('privacy-modal').classList.add('open'); }
+    function closePrivacyModal() { document.getElementById('privacy-modal').classList.remove('open'); }
+    
+    function saveSettings() {
+      myNickname = document.getElementById('input-nickname').value || '';
+      localStorage.setItem('user_nickname', myNickname);
+      updateProfileUI();
+      closeSettings();
+      alert(t('msgSettingsSaved'));
+    }
+
+    // --- コメント機能 ---
+    function openCommentModal(spotId) {
+      const spot = allSpots.find(s => s.docId === spotId);
+      if (!spot) return;
+
+      currentCommentSpot = spot;
+      document.getElementById('comment-modal').style.display = 'flex';
+      loadComments(spot);
+    }
+
+    function closeCommentModal() {
+      document.getElementById('comment-modal').style.display = 'none';
+      currentCommentSpot = null;
+    }
+
+    async function submitComment() {
+      const input = document.getElementById('input-new-comment');
+      const text = input.value.trim();
+      
+      if (!text) {
+        alert('コメントを入力してください');
+        return;
+      }
+      if (!currentCommentSpot) return;
+
+      let baseRef = getDocRef(currentCommentSpot);
+      if (!baseRef) return;
+
+      try {
+        await baseRef.collection('comments').add({
+          userId: currentUid,
+          userName: myNickname || t('guest'),
+          text: text,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        input.value = '';
+      } catch (e) {
+        alert('コメント送信失敗: ' + e.message);
+      }
+    }
+
+    function loadComments(spot) {
+      const container = document.getElementById('comment-list-container');
+      container.innerHTML = `<div style="padding:10px; text-align:center;">${t('loadingConnect')}</div>`;
+
+      let baseRef = getDocRef(spot);
+      if (!baseRef) return;
+
+      baseRef.collection('comments').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        if (snap.empty) {
+          container.innerHTML = `<div style="padding:10px; text-align:center; color:#888;">${t('noCommentsYet')}</div>`;
+          return;
+        }
+        
+        let html = '';
+        snap.docs.forEach(doc => {
+          const c = doc.data();
+          html += `
+            <div style="border-bottom: 1px solid #eee; padding: 6px 0;">
+              <b style="font-size:12px; color:#555;">${escapeHTML(c.userName || t('anonymous'))}</b><br>
+              <span style="font-size:14px; color:#333;">${escapeHTML(c.text)}</span>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      });
+    }
