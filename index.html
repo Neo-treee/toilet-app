@@ -161,14 +161,14 @@
   </div>
 
    <!-- マップ右下のフローティングボタン（2つに分割） -->
-  <div id="fab-container" style="position: fixed; bottom: 80px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1000;">
-    <button class="fab-btn" onclick="openRegisterForm()" style="background-color: #28a745; color: white; border: none; padding: 12px 16px; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-      🚻 トイレを登録
-    </button>
-    <button class="fab-btn" onclick="openRecordForm()" style="background-color: #007bff; color: white; border: none; padding: 12px 16px; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-      📖 思い出を記録
-    </button>
-  </div>
+  <div id="fab-container">
+  <button class="fab-btn" onclick="openRegisterForm()">
+    🚻 トイレを登録
+  </button>
+  <button class="fab-btn" id="fab-add-record" onclick="openRecordForm()">
+    📖 思い出を記録
+  </button>
+</div>
 
   <!-- 【1】トイレ登録フォーム（みんなの共有財産） -->
   <div id="input-form-register" class="input-form-modal" style="display:none; position:fixed; bottom:0; width:100%; max-height:80vh; overflow-y:auto; background:#fff; z-index:2000; padding:20px; box-sizing:border-box; border-radius:16px 16px 0 0; box-shadow: 0 -4px 10px rgba(0,0,0,0.1);">
