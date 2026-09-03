@@ -242,15 +242,15 @@
       </div>
     </div>
 
-    <div class="form-group" id="rec-group-section">
+     <!-- 初期状態では非表示にするため style="display: none;" を追加 -->
+    <div class="form-group" id="rec-group-section" style="display: none;">
       <label>共有するグループ</label>
       <select id="rec-group-select" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
         <option value="">選択してください...</option>
-        <option value="group1">👨‍👩‍👧 家族</option>
-        <option value="group2">🏃‍♂️ 友人・サークル</option>
-        <option value="group3">💼 職場・同僚</option>
+        <!-- ここに app.js から実際のグループ一覧が動的に追加されます -->
       </select>
     </div>
+
 
     <!-- 思い出を記録に星評価を追加 -->
     <div class="form-group">
