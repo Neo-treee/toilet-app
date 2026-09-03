@@ -494,13 +494,20 @@
       var companion = document.getElementById('rec-companion')?.value || '';
       var memo = document.getElementById('rec-memo')?.value || '';
 
-      var targetGroup = null;
+            var targetGroup = null;
       if (privacy === 'group') {
         if (myGroups.length === 0) {
           alert(t('alertNoGroupForPost'));
           return;
         }
-        targetGroup = myGroups[0].id;
+        // ▼ プルダウンから選択されたグループIDを取得するように変更
+        const groupSelect = document.getElementById('rec-target-group');
+        targetGroup = groupSelect ? groupSelect.value : '';
+        // 「▼ 選択してください…」のまま保存ボタンを押した場合は警告を出す
+        if (!targetGroup) {
+          alert('共有するグループを選択してください。');
+          return;
+        }
       }
 
       const loadingText = document.getElementById('loading-text');
