@@ -247,11 +247,14 @@
     function renderFeatureTags(features) {
       if (!features) return '';
       var html = '<div class="tag-container">';
-      if (features.accessible) html += `<span class="feature-tag">${t('filterAccessible')}</span>`;
-      if (features.baby) html += `<span class="feature-tag">${t('filterBaby')}</span>`;
-      if (features.washlet) html += `<span class="feature-tag">${t('filterWashlet')}</span>`;
-      if (features.open24h) html += `<span class="feature-tag">${t('filterOpen24h')}</span>`;
-      if (features.facility) html += `<span class="feature-tag">${t('filterFacility')}</span>`;
+      if (features.accessible) html += `<span class="feature-tag">多目的</span>`;
+      if (features.baby) html += `<span class="feature-tag">オムツ台</span>`;
+      if (features.washlet) html += `<span class="feature-tag">温水洗浄便座</span>`;
+      if (features.western) html += `<span class="feature-tag">洋式</span>`;
+      if (features.open24h) html += `<span class="feature-tag">24時間</span>`;
+      if (features.facility) html += `<span class="feature-tag">施設/コンビニ</span>`;
+      if (features.station) html += `<span class="feature-tag">駅</span>`;
+      if (features.parking) html += `<span class="feature-tag">駐車場</span>`;
       html += '</div>';
       return html;
     }
@@ -300,7 +303,7 @@
       activeMarkers[spot.docId] = marker;
     }
 
-    // --- 🚻 トイレ登録（みんなの共有財産）の保存処理 ---
+    // --- 🚻 トイレ登録の保存処理 ---
     async function saveRegisterData() {
       if (!currentUid) { alert(t('alertWait')); return; }
       if (!tempMarker) { alert("位置情報が取得できません。もう一度ピンを立ててください。"); return; }
@@ -321,7 +324,12 @@
         const features = {
           accessible: document.getElementById('reg-accessible').checked,
           baby: document.getElementById('reg-baby').checked,
-          washlet: document.getElementById('reg-washlet').checked
+          washlet: document.getElementById('reg-washlet').checked,
+          western: document.getElementById('reg-western').checked,
+          open24h: document.getElementById('reg-open24h').checked,
+          facility: document.getElementById('reg-facility').checked,
+          station: document.getElementById('reg-station').checked,
+          parking: document.getElementById('reg-parking').checked
         };
 
         let imageUrl = ''; let imagePath = ''; 
@@ -376,6 +384,7 @@
 
       var fileInput = document.getElementById('rec-photo');
       var rawFile = fileInput.files[0];
+      var rating = document.querySelector('input[name="rec-rating"]:checked')?.value || 3;
       var privacy = document.querySelector('input[name="rec-privacy"]:checked').value;
       var date = document.getElementById('rec-date').value;
       var companion = document.getElementById('rec-companion').value;
@@ -387,7 +396,7 @@
           alert(t('alertNoGroupForPost'));
           return;
         }
-        targetGroup = myGroups[0].id; // デフォルトで最初のグループを使用、または必要に応じて選択UIを追加可能
+        targetGroup = myGroups[0].id;
       }
 
       document.getElementById('loading-text').innerText = t('loadingSave');
@@ -406,6 +415,7 @@
 
         var newRecord = {
           lat: lat, lng: lng, toiletId: targetToiletId || null,
+          rating: parseInt(rating),
           privacy: privacy, groupId: targetGroup,
           date: date, companion: companion, comment: memo,
           userName: myNickname || t('guest'), userId: currentUid, imageUrl: imageUrl, imagePath: imagePath,
@@ -439,6 +449,11 @@
       document.getElementById('reg-accessible').checked = false;
       document.getElementById('reg-baby').checked = false;
       document.getElementById('reg-washlet').checked = false;
+      document.getElementById('reg-western').checked = false;
+      document.getElementById('reg-open24h').checked = false;
+      document.getElementById('reg-facility').checked = false;
+      document.getElementById('reg-station').checked = false;
+      document.getElementById('reg-parking').checked = false;
     }
 
     function resetRecordInputs() {
@@ -659,7 +674,7 @@
       openRegisterForm();
     });
 
-    // --- フォーム開閉用ヘルパー ---
+    // --- フォーム開閉用ヘルパー（フォームが下に隠れないように中央位置をオフセット調整） ---
     function openRegisterForm() {
       closeForms();
       const center = map.getCenter();
@@ -667,6 +682,10 @@
       tempMarker = L.marker(center, { draggable: true }).addTo(map);
       tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
       document.getElementById('input-form-register').style.display = 'block';
+      setTimeout(() => {
+        map.invalidateSize();
+        map.panBy([0, 150], { animate: true }); // 下部のフォームに隠れないよう地図をずらす
+      }, 50);
     }
 
     function openRecordForm(toiletId = null) {
@@ -679,6 +698,10 @@
         tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
       }
       document.getElementById('input-form-record').style.display = 'block';
+      setTimeout(() => {
+        map.invalidateSize();
+        map.panBy([0, 150], { animate: true }); // 下部のフォームに隠れないよう地図をずらす
+      }, 50);
     }
 
     function closeForms() {
