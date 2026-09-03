@@ -1,3 +1,80 @@
+    // --- 多言語・テキストフォールバック関数 ---
+    // t() 関数が未定義の場合のエラー防止用安全装置
+    if (typeof window.t !== 'function') {
+      window.t = function(key) {
+        const dictionary = {
+          guest: 'ゲスト',
+          optAll: 'すべて表示',
+          optPublicOnly: '公開のみ',
+          optPrivateOnly: '非公開のみ',
+          errAuth: '認証エラー: ',
+          loadingSearch: '場所を検索中...',
+          errSearch: '場所が見つかりませんでした。',
+          errSearchSys: '検索中にエラーが発生しました。',
+          loadingConnect: '通信中...',
+          badgePrivateIcon: '🔒[非公開]',
+          badgeGroupIcon: '👥[グループ:',
+          badgePublicIcon: '🌐[公開]',
+          anonymous: '匿名',
+          noComment: 'コメントなし',
+          distCurrent: '現在地から: ',
+          btnNaviMap: 'ナビ',
+          btnDel: '削除',
+          alertWait: '認証処理中です。少々お待ちください。',
+          loadingSave: 'データを保存中...',
+          loadingImage: '画像を圧縮・アップロード中...',
+          alertNoGroupForPost: '投稿先のグループが選択されていないか、所属していません。',
+          alertSaveFail: '保存に失敗しました: ',
+          errNotFound: '対象のデータが見つかりません。',
+          errRefFail: '参照の取得に失敗しました。',
+          errNotOwner: '自分が投稿したデータのみ削除できます。',
+          errDeleteFail: '削除に失敗しました: ',
+          loadingDelete: 'データを削除中...',
+          confirmDelete: '本当に削除しますか？',
+          alertCheckDel: '削除したい項目にチェックを入れてください。',
+          confirmBulkDelete1: '選択した ',
+          confirmBulkDelete2: ' 件のデータを削除しますか？',
+          loadingBulkDelete: '一括削除中...',
+          errBulkFail: '一括削除中にエラーが発生しました: ',
+          emptyList: '表示できるトイレ情報がありません。',
+          badgePublic: '公開',
+          badgePrivate: '非公開',
+          badgeGroup: 'グループ: ',
+          distPrefix: '距離: ',
+          sponsorPRTitle: 'スポンサーリンク',
+          sponsorPRDesc: 'おすすめのドライブ・アウトドアグッズ',
+          sponsorPRLink: 'Amazonでチェック',
+          postedBy: '投稿者: ',
+          btnMap: '地図',
+          btnNavi: 'ナビ',
+          msgLocNotSupported: 'お使いのブラウザは位置情報をサポートしていません。',
+          msgLocFail: '位置情報の取得に失敗しました。',
+          currentLocationPopup: '現在地',
+          noJoinedGroups: '参加しているグループはありません',
+          btnCopy: 'コピー',
+          btnLeave: '脱退',
+          msgCopyOk: 'グループIDをクリップボードにコピーしました',
+          msgCopyFail: 'コピーに失敗しました',
+          alertGroupNameReq: 'グループ名を入力してください',
+          loadingGroupCreate: 'グループを作成中...',
+          msgGroupCreated1: 'グループ「',
+          msgGroupCreated2: '」を作成しました',
+          errGroupCreateFail: 'グループ作成エラー: ',
+          alertGroupIdReq: 'グループIDを入力してください',
+          alertGroupAlready: 'すでにそのグループに参加しています',
+          loadingGroupJoin: 'グループを検索中...',
+          alertGroupNotFound: '指定されたIDのグループが見つかりません',
+          msgGroupJoined1: 'グループ「',
+          msgGroupJoined2: '」に参加しました',
+          errGroupJoinFail: 'グループ参加エラー: ',
+          confirmLeaveGroup: '本当にこのグループから脱退しますか？',
+          msgSettingsSaved: '設定を保存しました',
+          noCommentsYet: 'コメントはまだありません'
+        };
+        return dictionary[key] || key;
+      };
+    }
+
     const auth = firebase.auth();
     const db = firebase.firestore();
     const storage = firebase.storage();
@@ -40,13 +117,21 @@
     }
 
     function changeDisplayGroup() {
-      currentDisplayGroup = document.getElementById('disp-group-select').value;
+      const selectEl = document.getElementById('disp-group-select');
+      if (selectEl) {
+        currentDisplayGroup = selectEl.value;
+      }
       refreshMapAndList();
     }
 
     function updateProfileUI() {
-      document.getElementById('disp-nickname').innerText = myNickname || t('guest');
+      const nicknameEl = document.getElementById('disp-nickname');
+      if (nicknameEl) {
+        nicknameEl.innerText = myNickname || t('guest');
+      }
       const groupSelect = document.getElementById('disp-group-select');
+      if (!groupSelect) return;
+
       const currentValue = groupSelect.value;
       
       let optionsHtml = `<option value="all">${t('optAll')}</option>`;
@@ -123,10 +208,16 @@
     }
 
     async function searchLocation() {
-      const query = document.getElementById('input-search-location').value;
+      const searchInput = document.getElementById('input-search-location');
+      if (!searchInput) return;
+      const query = searchInput.value;
       if (!query) return;
-      document.getElementById('loading-text').innerText = t('loadingSearch');
-      document.getElementById('loading').style.display = 'flex';
+
+      const loadingText = document.getElementById('loading-text');
+      const loadingEl = document.getElementById('loading');
+      if (loadingText) loadingText.innerText = t('loadingSearch');
+      if (loadingEl) loadingEl.style.display = 'flex';
+
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&email=info@toilet-app.com`);
         const data = await res.json();
@@ -138,8 +229,8 @@
       } catch (e) {
         alert(t('errSearchSys'));
       } finally {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('loading-text').innerText = t('loadingConnect');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (loadingText) loadingText.innerText = t('loadingConnect');
       }
     }
 
@@ -178,7 +269,8 @@
         Object.values(groupSpotsMap).forEach(spots => { groupSpots = groupSpots.concat(spots); });
         allSpots = [...publicSpots, ...groupSpots, ...privateSpots];
         refreshMapAndList();
-        document.getElementById('loading').style.display = 'none';
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'none';
       };
 
       unsubscribers.push(
@@ -229,7 +321,8 @@
         if (isVisibleByGroup && matchesFilter) addMarkerToMap(spot);
       });
 
-      if (document.getElementById('list-view').style.display === 'block') renderList();
+      const listView = document.getElementById('list-view');
+      if (listView && listView.style.display === 'block') renderList();
     }
 
     function toggleFilter(el) {
@@ -309,32 +402,34 @@
       if (!tempMarker) { alert("位置情報が取得できません。もう一度ピンを立ててください。"); return; }
 
       var fileInput = document.getElementById('reg-photo');
-      var rawFile = fileInput.files[0];
+      var rawFile = fileInput ? fileInput.files[0] : null;
       var rating = document.querySelector('input[name="reg-rating"]:checked')?.value || 3;
-      var hours = document.getElementById('reg-hours').value;
-      var cleanliness = document.getElementById('reg-cleanliness').value;
-      var congestion = document.getElementById('reg-congestion').value;
+      var hours = document.getElementById('reg-hours')?.value || '';
+      var cleanliness = document.getElementById('reg-cleanliness')?.value || '';
+      var congestion = document.getElementById('reg-congestion')?.value || '';
 
-      document.getElementById('loading-text').innerText = t('loadingSave');
-      document.getElementById('loading').style.display = 'flex';
+      const loadingText = document.getElementById('loading-text');
+      const loadingEl = document.getElementById('loading');
+      if (loadingText) loadingText.innerText = t('loadingSave');
+      if (loadingEl) loadingEl.style.display = 'flex';
 
       try {
         const lat = tempMarker.getLatLng().lat;
         const lng = tempMarker.getLatLng().lng;
         const features = {
-          accessible: document.getElementById('reg-accessible').checked,
-          baby: document.getElementById('reg-baby').checked,
-          washlet: document.getElementById('reg-washlet').checked,
-          western: document.getElementById('reg-western').checked,
-          open24h: document.getElementById('reg-open24h').checked,
-          facility: document.getElementById('reg-facility').checked,
-          station: document.getElementById('reg-station').checked,
-          parking: document.getElementById('reg-parking').checked
+          accessible: document.getElementById('reg-accessible')?.checked || false,
+          baby: document.getElementById('reg-baby')?.checked || false,
+          washlet: document.getElementById('reg-washlet')?.checked || false,
+          western: document.getElementById('reg-western')?.checked || false,
+          open24h: document.getElementById('reg-open24h')?.checked || false,
+          facility: document.getElementById('reg-facility')?.checked || false,
+          station: document.getElementById('reg-station')?.checked || false,
+          parking: document.getElementById('reg-parking')?.checked || false
         };
 
         let imageUrl = ''; let imagePath = ''; 
         if (rawFile) {
-          document.getElementById('loading-text').innerText = t('loadingImage');
+          if (loadingText) loadingText.innerText = t('loadingImage');
           const compressedBlob = await compressImage(rawFile, 1024, 0.75);
           imagePath = `toilet_photos/${currentUid}/${Date.now()}.jpg`;
           const storageRef = storage.ref(imagePath);
@@ -358,8 +453,8 @@
       } catch (error) {
         alert(t('alertSaveFail') + error.message);
       } finally {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('loading-text').innerText = t('loadingConnect');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (loadingText) loadingText.innerText = t('loadingConnect');
       }
     }
 
@@ -367,7 +462,7 @@
     async function saveRecordData() {
       if (!currentUid) { alert(t('alertWait')); return; }
 
-      const targetToiletId = document.getElementById('rec-target-toilet-id').value;
+      const targetToiletId = document.getElementById('rec-target-toilet-id')?.value;
       let lat = null, lng = null;
 
       if (!targetToiletId) {
@@ -383,12 +478,13 @@
       }
 
       var fileInput = document.getElementById('rec-photo');
-      var rawFile = fileInput.files[0];
+      var rawFile = fileInput ? fileInput.files[0] : null;
       var rating = document.querySelector('input[name="rec-rating"]:checked')?.value || 3;
-      var privacy = document.querySelector('input[name="rec-privacy"]:checked').value;
-      var date = document.getElementById('rec-date').value;
-      var companion = document.getElementById('rec-companion').value;
-      var memo = document.getElementById('rec-memo').value;
+      var privacyEl = document.querySelector('input[name="rec-privacy"]:checked');
+      var privacy = privacyEl ? privacyEl.value : 'private';
+      var date = document.getElementById('rec-date')?.value || '';
+      var companion = document.getElementById('rec-companion')?.value || '';
+      var memo = document.getElementById('rec-memo')?.value || '';
 
       var targetGroup = null;
       if (privacy === 'group') {
@@ -399,13 +495,15 @@
         targetGroup = myGroups[0].id;
       }
 
-      document.getElementById('loading-text').innerText = t('loadingSave');
-      document.getElementById('loading').style.display = 'flex';
+      const loadingText = document.getElementById('loading-text');
+      const loadingEl = document.getElementById('loading');
+      if (loadingText) loadingText.innerText = t('loadingSave');
+      if (loadingEl) loadingEl.style.display = 'flex';
 
       try {
         let imageUrl = ''; let imagePath = ''; 
         if (rawFile) {
-          document.getElementById('loading-text').innerText = t('loadingImage');
+          if (loadingText) loadingText.innerText = t('loadingImage');
           const compressedBlob = await compressImage(rawFile, 1024, 0.75);
           imagePath = `record_photos/${currentUid}/${Date.now()}.jpg`;
           const storageRef = storage.ref(imagePath);
@@ -436,32 +534,35 @@
       } catch (error) {
         alert(t('alertSaveFail') + error.message);
       } finally {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('loading-text').innerText = t('loadingConnect');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (loadingText) loadingText.innerText = t('loadingConnect');
       }
     }
 
     function resetRegisterInputs() {
-      document.getElementById('reg-hours').value = '';
-      document.getElementById('reg-cleanliness').value = '';
-      document.getElementById('reg-congestion').value = '';
-      document.getElementById('reg-photo').value = '';
-      document.getElementById('reg-accessible').checked = false;
-      document.getElementById('reg-baby').checked = false;
-      document.getElementById('reg-washlet').checked = false;
-      document.getElementById('reg-western').checked = false;
-      document.getElementById('reg-open24h').checked = false;
-      document.getElementById('reg-facility').checked = false;
-      document.getElementById('reg-station').checked = false;
-      document.getElementById('reg-parking').checked = false;
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
+      setVal('reg-hours', '');
+      setVal('reg-cleanliness', '');
+      setVal('reg-congestion', '');
+      setVal('reg-photo', '');
+      setCheck('reg-accessible', false);
+      setCheck('reg-baby', false);
+      setCheck('reg-washlet', false);
+      setCheck('reg-western', false);
+      setCheck('reg-open24h', false);
+      setCheck('reg-facility', false);
+      setCheck('reg-station', false);
+      setCheck('reg-parking', false);
     }
 
     function resetRecordInputs() {
-      document.getElementById('rec-date').value = '';
-      document.getElementById('rec-companion').value = '';
-      document.getElementById('rec-memo').value = '';
-      document.getElementById('rec-photo').value = '';
-      document.getElementById('rec-target-toilet-id').value = '';
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      setVal('rec-date', '');
+      setVal('rec-companion', '');
+      setVal('rec-memo', '');
+      setVal('rec-photo', '');
+      setVal('rec-target-toilet-id', '');
     }
 
     function getDocRef(spot) {
@@ -473,8 +574,11 @@
 
     async function deleteSpot(docId) {
       if (confirm(t('confirmDelete'))) {
-        document.getElementById('loading-text').innerText = t('loadingDelete');
-        document.getElementById('loading').style.display = 'flex';
+        const loadingText = document.getElementById('loading-text');
+        const loadingEl = document.getElementById('loading');
+        if (loadingText) loadingText.innerText = t('loadingDelete');
+        if (loadingEl) loadingEl.style.display = 'flex';
+
         try {
           const spot = allSpots.find(s => s.docId === docId);
           if (!spot) throw new Error(t('errNotFound'));
@@ -490,8 +594,8 @@
         } catch (error) {
           alert(t('errDeleteFail') + error.message);
         } finally {
-          document.getElementById('loading').style.display = 'none';
-          document.getElementById('loading-text').innerText = t('loadingConnect');
+          if (loadingEl) loadingEl.style.display = 'none';
+          if (loadingText) loadingText.innerText = t('loadingConnect');
         }
       }
     }
@@ -501,8 +605,11 @@
       if (checkboxes.length === 0) { alert(t('alertCheckDel')); return; }
       if (!confirm(`${t('confirmBulkDelete1')}${checkboxes.length}${t('confirmBulkDelete2')}`)) return;
 
-      document.getElementById('loading-text').innerText = t('loadingBulkDelete');
-      document.getElementById('loading').style.display = 'flex';
+      const loadingText = document.getElementById('loading-text');
+      const loadingEl = document.getElementById('loading');
+      if (loadingText) loadingText.innerText = t('loadingBulkDelete');
+      if (loadingEl) loadingEl.style.display = 'flex';
+
       try {
         for (const cb of checkboxes) {
           const spot = allSpots.find(s => s.docId === cb.value);
@@ -514,35 +621,46 @@
             }
           }
         }
-      } catch (error) { alert(t('errBulkFail') + error.message);
+      } catch (error) { 
+        alert(t('errBulkFail') + error.message);
       } finally {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('loading-text').innerText = t('loadingConnect');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (loadingText) loadingText.innerText = t('loadingConnect');
       }
     }
 
     function switchTab(tabName) {
+      const mapEl = document.getElementById('map');
+      const fabEl = document.getElementById('fab-container');
+      const listEl = document.getElementById('list-view');
+      const navMap = document.getElementById('nav-map');
+      const navList = document.getElementById('nav-list');
+
       if (tabName === 'map') {
-        document.getElementById('map').style.display = 'block';
-        document.getElementById('fab-container').style.display = 'flex';
-        document.getElementById('list-view').style.display = 'none';
-        document.getElementById('nav-map').classList.add('active');
-        document.getElementById('nav-list').classList.remove('active');
+        if (mapEl) mapEl.style.display = 'block';
+        if (fabEl) fabEl.style.display = 'flex';
+        if (listEl) listEl.style.display = 'none';
+        if (navMap) navMap.classList.add('active');
+        if (navList) navList.classList.remove('active');
         map.invalidateSize();
       } else {
-        document.getElementById('map').style.display = 'none';
-        document.getElementById('fab-container').style.display = 'none';
-        document.getElementById('list-view').style.display = 'block';
-        document.getElementById('nav-list').classList.add('active');
-        document.getElementById('nav-map').classList.remove('active');
+        if (mapEl) mapEl.style.display = 'none';
+        if (fabEl) fabEl.style.display = 'none';
+        if (listEl) listEl.style.display = 'block';
+        if (navList) navList.classList.add('active');
+        if (navMap) navMap.classList.remove('active');
         renderList();
       }
     }
 
     function renderList() {
       var container = document.getElementById('list-container');
-      var searchQuery = document.getElementById('search-box').value.toLowerCase();
-      var sortMethod = document.getElementById('sort-box').value;
+      if (!container) return;
+
+      var searchBox = document.getElementById('search-box');
+      var searchQuery = searchBox ? searchBox.value.toLowerCase() : '';
+      var sortBox = document.getElementById('sort-box');
+      var sortMethod = sortBox ? sortBox.value : 'newest';
 
       var filtered = allSpots.filter(spot => {
         var isVisibleByGroup = true;
@@ -681,7 +799,10 @@
       if (tempMarker) map.removeLayer(tempMarker);
       tempMarker = L.marker(center, { draggable: true }).addTo(map);
       tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
-      document.getElementById('input-form-register').style.display = 'block';
+      
+      const form = document.getElementById('input-form-register');
+      if (form) form.style.display = 'block';
+      
       setTimeout(() => {
         map.invalidateSize();
         map.panBy([0, 150], { animate: true }); // 下部のフォームに隠れないよう地図をずらす
@@ -690,14 +811,19 @@
 
     function openRecordForm(toiletId = null) {
       closeForms();
-      document.getElementById('rec-target-toilet-id').value = toiletId || '';
+      const recIdEl = document.getElementById('rec-target-toilet-id');
+      if (recIdEl) recIdEl.value = toiletId || '';
+      
       if (!toiletId) {
         const center = map.getCenter();
         if (tempMarker) map.removeLayer(tempMarker);
         tempMarker = L.marker(center, { draggable: true }).addTo(map);
         tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
       }
-      document.getElementById('input-form-record').style.display = 'block';
+      
+      const form = document.getElementById('input-form-record');
+      if (form) form.style.display = 'block';
+      
       setTimeout(() => {
         map.invalidateSize();
         map.panBy([0, 150], { animate: true }); // 下部のフォームに隠れないよう地図をずらす
@@ -705,13 +831,17 @@
     }
 
     function closeForms() {
-      document.getElementById('input-form-register').style.display = 'none';
-      document.getElementById('input-form-record').style.display = 'none';
+      const regForm = document.getElementById('input-form-register');
+      const recForm = document.getElementById('input-form-record');
+      if (regForm) regForm.style.display = 'none';
+      if (recForm) recForm.style.display = 'none';
       if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
     }
 
     function renderGroupSettings() {
       const container = document.getElementById('group-list-container');
+      if (!container) return;
+
       if (myGroups.length === 0) {
         container.innerHTML = `<div style="padding: 10px; background: #fafafa; border-radius: 4px; text-align: center;">${t('noJoinedGroups')}</div>`;
         return;
@@ -740,11 +870,14 @@
 
     async function createNewGroup() {
       const input = document.getElementById('input-create-group-name');
+      if (!input) return;
       const groupName = input.value.trim();
       if (!groupName) { alert(t('alertGroupNameReq')); return; }
 
-      document.getElementById('loading-text').innerText = t('loadingGroupCreate');
-      document.getElementById('loading').style.display = 'flex';
+      const loadingText = document.getElementById('loading-text');
+      const loadingEl = document.getElementById('loading');
+      if (loadingText) loadingText.innerText = t('loadingGroupCreate');
+      if (loadingEl) loadingEl.style.display = 'flex';
 
       try {
         const docRef = await db.collection('groups').add({
@@ -761,12 +894,13 @@
       } catch (e) {
         alert(t('errGroupCreateFail') + e.message);
       } finally {
-        document.getElementById('loading').style.display = 'none';
+        if (loadingEl) loadingEl.style.display = 'none';
       }
     }
 
     async function joinGroupById() {
       const input = document.getElementById('input-join-group-id');
+      if (!input) return;
       const groupId = input.value.trim();
       if (!groupId) { alert(t('alertGroupIdReq')); return; }
 
@@ -775,8 +909,10 @@
         return;
       }
 
-      document.getElementById('loading-text').innerText = t('loadingGroupJoin');
-      document.getElementById('loading').style.display = 'flex';
+      const loadingText = document.getElementById('loading-text');
+      const loadingEl = document.getElementById('loading');
+      if (loadingText) loadingText.innerText = t('loadingGroupJoin');
+      if (loadingEl) loadingEl.style.display = 'flex';
 
       try {
         const doc = await db.collection('groups').doc(groupId).get();
@@ -796,7 +932,7 @@
       } catch (e) {
         alert(t('errGroupJoinFail') + e.message);
       } finally {
-        document.getElementById('loading').style.display = 'none';
+        if (loadingEl) loadingEl.style.display = 'none';
       }
     }
 
@@ -815,17 +951,31 @@
     }
 
     function openSettings() {
-      document.getElementById('input-nickname').value = myNickname;
+      const nickInput = document.getElementById('input-nickname');
+      if (nickInput) nickInput.value = myNickname;
       renderGroupSettings();
-      document.getElementById('settings-modal').classList.add('open');
+      const modal = document.getElementById('settings-modal');
+      if (modal) modal.classList.add('open');
     }
     
-    function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
-    function openPrivacyModal() { document.getElementById('privacy-modal').classList.add('open'); }
-    function closePrivacyModal() { document.getElementById('privacy-modal').classList.remove('open'); }
+    function closeSettings() { 
+      const modal = document.getElementById('settings-modal');
+      if (modal) modal.classList.remove('open'); 
+    }
+    
+    function openPrivacyModal() { 
+      const modal = document.getElementById('privacy-modal');
+      if (modal) modal.classList.add('open'); 
+    }
+    
+    function closePrivacyModal() { 
+      const modal = document.getElementById('privacy-modal');
+      if (modal) modal.classList.remove('open'); 
+    }
     
     function saveSettings() {
-      myNickname = document.getElementById('input-nickname').value || '';
+      const nickInput = document.getElementById('input-nickname');
+      myNickname = nickInput ? nickInput.value : '';
       localStorage.setItem('user_nickname', myNickname);
       updateProfileUI();
       closeSettings();
@@ -838,17 +988,20 @@
       if (!spot) return;
 
       currentCommentSpot = spot;
-      document.getElementById('comment-modal').style.display = 'flex';
+      const modal = document.getElementById('comment-modal');
+      if (modal) modal.style.display = 'flex';
       loadComments(spot);
     }
 
     function closeCommentModal() {
-      document.getElementById('comment-modal').style.display = 'none';
+      const modal = document.getElementById('comment-modal');
+      if (modal) modal.style.display = 'none';
       currentCommentSpot = null;
     }
 
     async function submitComment() {
       const input = document.getElementById('input-new-comment');
+      if (!input) return;
       const text = input.value.trim();
       
       if (!text) {
@@ -875,6 +1028,7 @@
 
     function loadComments(spot) {
       const container = document.getElementById('comment-list-container');
+      if (!container) return;
       container.innerHTML = `<div style="padding:10px; text-align:center;">${t('loadingConnect')}</div>`;
 
       let baseRef = getDocRef(spot);
