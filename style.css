@@ -48,7 +48,7 @@ body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "S
 /* 右下のボタンコンテナ（縦並び用） */
 #fab-container {
   position: absolute;
-  bottom: 20px;
+  bottom: 80px;
   right: 20px;
   z-index: 999;
   display: flex;
