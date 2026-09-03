@@ -1,3 +1,4 @@
+// Firebaseの設定情報
 const firebaseConfig = {
   apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
   authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
@@ -6,4 +7,8 @@ const firebaseConfig = {
   messagingSenderId: "322835199622",
   appId: "1:322835199622:web:7e43f787b97a003d408307"
 };
-firebase.initializeApp(firebaseConfig);
+
+// Firebaseの初期化
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
