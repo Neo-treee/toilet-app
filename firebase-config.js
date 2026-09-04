@@ -12,3 +12,7 @@ const firebaseConfig = {
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
+let analytics;
+if (typeof firebase.analytics === 'function') {
+  analytics = firebase.analytics();
+}
