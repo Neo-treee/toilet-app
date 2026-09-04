@@ -836,6 +836,19 @@
         tempMarker.bindPopup("ドラッグして位置を調整できます").openPopup();
       }
       
+     const groupSelect = document.getElementById('rec-group-select');
+      if (groupSelect) {
+        if (myGroups.length === 0) {
+          groupSelect.innerHTML = `<option value="" disabled>参加しているグループがありません</option>`;
+        } else {
+          let optionsHtml = `<option value="" disabled selected>▼ グループを選択してください</option>`;
+          myGroups.forEach(g => {
+            optionsHtml += `<option value="${g.id}">${g.name}</option>`;
+          });
+          groupSelect.innerHTML = optionsHtml;
+        }
+      }
+    
       const form = document.getElementById('input-form-record');
       if (form) form.style.display = 'block';
       
@@ -852,6 +865,19 @@
       if (recForm) recForm.style.display = 'none';
       if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
     }
+    
+    document.addEventListener('change', function(e) {
+      if (e.target && e.target.name === 'rec-privacy') {
+        const groupSection = document.getElementById('rec-group-section');
+        if (groupSection) {
+          if (e.target.value === 'group') {
+            groupSection.style.display = 'block'; // 「グループ」を選んだら表示
+          } else {
+            groupSection.style.display = 'none';  // それ以外なら隠す
+          }
+        }
+      }
+    });
 
     function renderGroupSettings() {
       const container = document.getElementById('group-list-container');
