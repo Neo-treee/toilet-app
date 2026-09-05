@@ -8,7 +8,7 @@ const firebaseConfig = {
 };
 
 // Firebaseの初期化
-const app = initializeApp(firebaseConfig);
+const app = firebase.initializeApp(firebaseConfig);
 
 // Analyticsの初期化（ブラウザ等の対応環境のみ実行）
 let analytics;
