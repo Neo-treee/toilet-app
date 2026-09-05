@@ -1,4 +1,6 @@
-// Firebaseの設定情報
+import { initializeApp } from "firebase/app";
+import { getAnalytics, isSupported } from "firebase/analytics";
+
 const firebaseConfig = {
   apiKey: "AIzaSyA0ixB0Wj-rSo7X7VOUZZROP8lUZBj6vJg",
   authDomain: "my-toilet-app-3c2c3.firebaseapp.com",
@@ -9,10 +11,12 @@ const firebaseConfig = {
 };
 
 // Firebaseの初期化
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+const app = initializeApp(firebaseConfig);
+
+// Analyticsの初期化（ブラウザ等の対応環境のみ実行）
 let analytics;
-if (typeof firebase.analytics === 'function') {
-  analytics = firebase.analytics();
-}
+isSupported().then((supported) => {
+  if (supported) {
+    analytics = getAnalytics(app);
+  }
+});
