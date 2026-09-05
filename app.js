@@ -446,8 +446,8 @@ function addMarkerToMap(spot) {
       <b>${escapeHTML(spot.comment || t('noComment'))}</b><br><br>
       <div style="display:flex; gap:4px;">
         <button style="flex:1; padding:5px 2px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openNavigation(${spot.lat}, ${spot.lng})">${t('btnNaviMap')}</button>
-        <button style="flex:1; padding:5px 2px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openCommentModal('${spot.docId}')">${t('btnComment')}</button>
-        <button style="flex:1; padding:5px 2px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openRecordForm('${spot.docId}')">${t('btnRecord')}</button>
+        <button style="flex:1; padding:5px 2px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openCommentModal('${spot.docId}')">${t('btnOpenComments')}</button>
+        <button style="flex:1; padding:5px 2px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;" onclick="openRecordForm('${spot.docId}')">${t('fabAddRecord')}</button>
         ${deleteBtnHtml}
       </div>
     </div>
@@ -807,8 +807,8 @@ function renderList() {
         <div class="list-actions">
           <button class="btn-action btn-map" onclick="viewOnMap('${spot.docId}')">${t('btnMap')}</button>
           <button class="btn-action btn-nav" onclick="openNavigation(${spot.lat}, ${spot.lng})">${t('btnNavi')}</button>
-          <button class="btn-action" style="background:#007bff; color:white;" onclick="openCommentModal('${spot.docId}')">${t('btnComment')}</button>
-          <button class="btn-action" style="background:#17a2b8; color:white;" onclick="openRecordForm('${spot.docId}')">${t('btnRecord')}</button>
+          <button class="btn-action" style="background:#007bff; color:white;" onclick="openCommentModal('${spot.docId}')">${t('btnOpenComments')}</button>
+          <button class="btn-action" style="background:#17a2b8; color:white;" onclick="openRecordForm('${spot.docId}')">${t('fabAddRecord')}</button>
           ${deleteBtnHtml}
         </div>
       </div>
