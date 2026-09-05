@@ -402,14 +402,14 @@ function toggleFilter(el) {
 function renderFeatureTags(features) {
   if (!features) return '';
   let html = '<div class="tag-container">';
-  if (features.accessible) html += `<span class="feature-tag">${t('tagAccessible')}</span>`;
-  if (features.baby) html += `<span class="feature-tag">${t('tagBaby')}</span>`;
-  if (features.washlet) html += `<span class="feature-tag">${t('tagWashlet')}</span>`;
-  if (features.western) html += `<span class="feature-tag">${t('tagWestern')}</span>`;
-  if (features.open24h) html += `<span class="feature-tag">${t('tagOpen24h')}</span>`;
-  if (features.facility) html += `<span class="feature-tag">${t('tagFacility')}</span>`;
-  if (features.station) html += `<span class="feature-tag">${t('tagStation')}</span>`;
-  if (features.parking) html += `<span class="feature-tag">${t('tagParking')}</span>`;
+  if (features.accessible) html += `<span class="feature-tag">${t('filterAccessible')}</span>`;
+  if (features.baby) html += `<span class="feature-tag">${t('filterBaby')}</span>`;
+  if (features.washlet) html += `<span class="feature-tag">${t('filterWashlet')}</span>`;
+  if (features.western) html += `<span class="feature-tag">${t('filterWestern')}</span>`;
+  if (features.open24h) html += `<span class="feature-tag">${t('filterOpen24h')}</span>`;
+  if (features.facility) html += `<span class="feature-tag">${t('filterFacility')}</span>`;
+  if (features.station) html += `<span class="feature-tag">${t('filterStation')}</span>`;
+  if (features.parking) html += `<span class="feature-tag">${t('filterParking')}</span>`;
   html += '</div>';
   return html;
 }
