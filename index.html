@@ -2,88 +2,6 @@
 <html lang="ja">
 <head>
   <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-9TQVXQ357D"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-9TQVXQ357D');
-  </script>
-  
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  
-  <title>トイレマップ ー みんなで世界のトイレを見つけて投稿しよう</title>
-  <meta name="description" content="世界中の公衆トイレや利用可能なトイレを簡単に検索・投稿できるシェアリングアプリです。近くのトイレを今すぐ見つけよう！">
-  <meta name="theme-color" content="#007bff">
-
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22%E3%83%88%E3%82%A4%E3%83%AC%E3%83%9E%E3%83%83%E3%83%97%22,%22short_name%22:%22%E3%83%88%E3%82%A4%E3%83%AC%E3%83%9E%E3%83%83%E3%83%97%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%23ffffff%22,%22theme_color%22:%22%23007bff%22}">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
-  <!-- Leaflet CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Firebase SDK (v9 compat) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
-
-  <!-- 多言語対応 (i18n) 辞書と処理 -->
-  <script>
-    const i18n = {
-      ja: {
-        guest: "ゲスト", settings: "設定", searchLocPlaceholder: "駅名・住所で検索 (例: 新宿駅)", searchBtn: "🔍 検索",
-        filterAccessible: "♿ 多目的", filterBaby: "👶 オムツ台", filterWashlet: "🚽 温水洗浄便座", filterWestern: "🚽 洋式", filterOpen24h: "⏰ 24時間", filterFacility: "🏪 施設/コンビニ", filterStation: "🚉 駅", filterParking: "🅿️ 駐車場",
-        loadingAuth: "認証・接続中...", addRecord: "＋ 記録", searchKwPlaceholder: "キーワード検索...", sortNewest: "新着順", sortHighest: "評価順", sortNearest: "距離が近い順",
-        bulkDelete: "選択削除", privacyPolicy: "プライバシーポリシー", support: "運営・お問い合わせ", tabMap: "🗺️ マップ", tabList: "📋 みんなの記録",
-        formTitle: "トイレを記録", visibility: "公開範囲", visGroup: "👥 グループのみ共有", visPublic: "🌐 全体公開（みんなで共有）", visPrivate: "🔒 自分のみ（クラウド非公開保存）",
-        photoAttach: "写真の添付（自動軽量化されます）", facilities: "設備情報（複数選択可）", ratingTitle: "評価（星1〜5）", commentLabel: "コメント", commentPlaceholder: "例：清潔、トイレットペーパー完備",
-        btnSave: "保存する", settingTitle: "ユーザー＆グループ設定", nicknameLabel: "ニックネーム", nicknamePlaceholder: "例：たろう", groupListLabel: "参加中のグループ一覧（招待コードをコピーできます）",
-        createGroupLabel: "✨ 新しいグループを作る", createGroupPlaceholder: "グループ名 (例: 家族)", btnCreate: "作成", joinGroupLabel: "🤝 招待コードで参加する", joinGroupPlaceholder: "招待コードを入力",
-        btnJoin: "参加", joinGroupDesc: "友達から共有された招待コードを入力してください。", btnSaveSettings: "設定を保存", optAll: "🌐 すべて表示", optPublicOnly: "🌐 全体公開のみ",
-        optPrivateOnly: "🔒 自分のみ", loadingSearch: "場所を検索中...", loadingConnect: "接続中...", loadingSave: "保存中...", loadingImage: "画像を圧縮・アップロード中...",
-        loadingDelete: "削除中...", loadingBulkDelete: "一括削除中...", loadingGroupCreate: "グループ作成中...", loadingGroupJoin: "グループを探しています...", errAuth: "匿名認証に失敗しました: ",
-        errSearch: "該当する場所が見つかりませんでした。", errSearchSys: "検索処理でエラーが発生しました。", alertWait: "認証処理中のため少々お待ちください。", alertNoGroupForPost: "参加中のグループがありません。設定からグループを追加するか、別の公開範囲を選んでください。",
-        alertSaveFail: "保存に失敗しました: ", confirmDelete: "この記録を削除しますか？", errNotFound: "データが見つかりません。", errRefFail: "参照の取得に失敗しました。", errNotOwner: "本人の投稿のみ削除できます。",
-        errDeleteFail: "削除に失敗しました: ", alertCheckDel: "削除したい項目にチェックを入れてください。", confirmBulkDelete1: "選択した ", confirmBulkDelete2: " 件の記録を削除しますか？",
-        errBulkFail: "一括削除処理に一部失敗しました: ", emptyList: "表示できる記録がありません。", adSponsor: "スポンサー広告", adPlaceholder: "[ここにGoogle AdSenseの広告が表示されます]",
-        btnNavi: "🧭 ナビ起動", btnMap: "📍 地図", btnDel: "🗑️ 削除", distPrefix: "📍 約 ", noComment: "コメントなし", anonymous: "名無し", badgePublic: "🌐 全体共有",
-        badgePrivate: "🔒 自分のみ", badgeGroup: "👥 ", badgePrivateIcon: "[🔒自分のみ]", badgePublicIcon: "[🌐全体]", badgeGroupIcon: "[👥", distCurrent: "現在地から ",
-        msgCopyOk: "招待コードをコピーしました！LINE等に貼り付けて共有してください。", msgCopyFail: "コピーに失敗しました。手動で長押ししてコピーしてください。", alertGroupNameReq: "グループ名を入力してください。",
-        msgGroupCreated1: "グループ「", msgGroupCreated2: "」を作成しました！設定画面から招待コードをコピーして友達に教えてあげてください。", errGroupCreateFail: "作成に失敗しました: ",
-        alertGroupIdReq: "招待コードを入力してください。", alertGroupAlready: "すでに参加しているグループです。", alertGroupNotFound: "指定された招待コードのグループが見つかりません。",
-        msgGroupJoined1: "グループ「", msgGroupJoined2: "」に参加しました！", errGroupJoinFail: "参加エラー: ", confirmLeaveGroup: "このグループから抜けますか？ (投稿したデータは残り続けます)",
-        msgSettingsSaved: "設定を保存しました。", msgLocNotSupported: "お使いのブラウザは位置情報をサポートしていません。", msgLocFail: "現在地の取得に失敗しました。端末の位置情報設定を確認してください。",
-        noJoinedGroups: "参加中のグループはありません", btnCopy: "📋 複製", btnLeave: "抜ける", currentLocationPopup: "現在地", btnNaviMap: "🧭 ナビ", sponsorPRTitle: "【PR】おすすめの外出用衛生グッズ",
-        sponsorPRDesc: "外出先のトイレでも安心！携帯用除菌ミスト＆流せるティッシュ", sponsorPRLink: "Amazonで詳細を見る ↗", lblPrivacyPolicy1: "<b>1. 情報の取得と利用</b><br>当アプリでは、ユーザーの位置情報および投稿されたコメント・写真をサービス提供の目的でのみ使用します。",
-        lblPrivacyPolicy2: "<b>2. 広告の配信について</b><br>当アプリでは第三者配信事業者（Google AdSense等）による広告を掲載する場合があります。", lblPrivacyPolicy3: "<b>3. お問い合わせ</b><br>投稿の削除依頼につきましては投稿一覧画面より削除を行っていただくか、管理者へご連絡ください。",
-        groupNotSet: "グループ未設定", postedBy: "投稿者: ",
-        commentModalTitle: "コメント・レビュー一覧", btnOpenComments: "💬 コメントを見る", postCommentBtn: "送信する", commentInputPlaceholder: "状況や感想を入力...", noCommentsYet: "まだコメントがありません。", dragHint: "ドラッグして位置を調整できます",
-        regFormTitle: "🚻 トイレを登録（全体公開）", regFacilities: "設備（複数選択可）", regHours: "営業時間", regHoursPlaceholder: "例: 24時間, 9:00〜20:00", regCondition: "清潔度・混雑度",
-        regCleanSelect: "清潔度を選択...", regClean5: "✨ とても綺麗", regClean3: "👍 普通", regClean1: "⚠️ 汚れが目立つ",
-        regCongestSelect: "混雑度を選択...", regCongestEmpty: "🟢 空いている", regCongestNormal: "🟡 普通", regCongestCrowded: "🔴 混雑・並ぶ",
-        regRating: "総合評価（星1〜5）", regPhoto: "写真の添付", btnRegister: "登録する",
-        recFormTitle: "📖 思い出を記録", recVisibility: "公開範囲", recVisPrivate: "🔒 自分のみ", recVisGroup: "👥 グループ", recVisPublic: "🌐 全体", recGroupShare: "共有するグループ", recGroupSelect: "選択してください...", recRating: "評価（星1〜5）", recDate: "日付", recCompanion: "誰と？", recCompanionPlaceholder: "例: 家族で、友人と", recMemo: "メモ・日記", recMemoPlaceholder: "感想や出来事を入力...", recPhotoご提示いただいたコードには、フォーム内やボタンの一部に**日本語が直接書き込まれており（ハードコード）、多言語化機能が適用されていない（または適用するとチェックボックス等の入力要素が消えてしまう）問題**がありました。
-
-質を上げるため、以下の点を改善・解決しています。
-
-1. **翻訳漏れの完全対応**: フォーム内のラベル、セレクトボックスの選択肢、プレースホルダーに至るまで、すべてのテキストを `i18n` 辞書に追加し多言語対応させました。
-2. **DOM破壊の防止**: `<label>` に `data-i18n` を直接指定すると、中にある `<input type="checkbox">` まで上書きして消してしまう問題を解決するため、テキスト部分のみを `<span>` で囲んで翻訳を適用する安全な構造に修正しました。
-3. **辞書の整理と可読性向上**: 1行に詰め込まれていた翻訳辞書を整形し、今後のメンテナンス（多言語の追加など）を容易にしました。
-
-以下のコードを一括コピーして上書き保存してください。
-
-```html
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <!-- Google tag (gtag.js) -->
   <script async src="[https://www.googletagmanager.com/gtag/js?id=G-9TQVXQ357D](https://www.googletagmanager.com/gtag/js?id=G-9TQVXQ357D)"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -145,7 +63,7 @@
         noJoinedGroups: "参加中のグループはありません", btnCopy: "📋 複製", btnLeave: "抜ける", currentLocationPopup: "現在地", btnNaviMap: "🧭 ナビ", sponsorPRTitle: "【PR】おすすめの外出用衛生グッズ",
         sponsorPRDesc: "外出先のトイレでも安心！携帯用除菌ミスト＆流せるティッシュ", sponsorPRLink: "Amazonで詳細を見る ↗", lblPrivacyPolicy1: "<b>1. 情報の取得と利用</b><br>当アプリでは、ユーザーの位置情報および投稿されたコメント・写真をサービス提供の目的でのみ使用します。",
         lblPrivacyPolicy2: "<b>2. 広告の配信について</b><br>当アプリでは第三者配信事業者（Google AdSense等）による広告を掲載する場合があります。", lblPrivacyPolicy3: "<b>3. お問い合わせ</b><br>投稿の削除依頼につきましては投稿一覧画面より削除を行っていただくか、管理者へご連絡ください。",
-        groupNotSet: "グループ未設定", postedBy: "投稿者: ", commentModalTitle: "コメント・レビュー一覧", btnOpenComments: "💬 コメントを見る", postCommentBtn: "送信", commentInputPlaceholder: "状況や感想を入力...", noCommentsYet: "まだコメントがありません。",
+        groupNotSet: "グループ未設定", postedBy: "投稿者: ", commentModalTitle: "コメント・レビュー一覧", btnOpenComments: "💬 コメントを見る", postCommentBtn: "送信", commentInputPlaceholder: "状況や感想を入力...", noCommentsYet: "まだコメントがありません。", dragHint: "ドラッグして位置を調整できます",
         // 以下追加・修正分のキー
         regFormTitle: "🚻 トイレを登録（全体公開）", regFacilitiesLabel: "設備（複数選択可）", regHoursLabel: "営業時間", regHoursPlaceholder: "例: 24時間, 9:00〜20:00",
         regCleanCrowdLabel: "清潔度・混雑度", regCleanPlaceholder: "清潔度を選択...", regClean5: "✨ とても綺麗", regClean3: "👍 普通", regClean1: "⚠️ 汚れが目立つ",
