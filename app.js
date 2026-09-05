@@ -866,7 +866,7 @@ function openRegisterForm() {
   const center = map.getCenter();
   if (tempMarker) map.removeLayer(tempMarker);
   tempMarker = L.marker(center, { draggable: true }).addTo(map);
-  tempMarker.bindPopup(t('popupDragAdjust')).openPopup();
+  tempMarker.bindPopup(t('dragHint')).openPopup();
   
   const form = document.getElementById('input-form-register');
   if (form) form.style.display = 'block';
@@ -886,7 +886,7 @@ function openRecordForm(toiletId = null) {
     const center = map.getCenter();
     if (tempMarker) map.removeLayer(tempMarker);
     tempMarker = L.marker(center, { draggable: true }).addTo(map);
-    tempMarker.bindPopup(t('popupDragAdjust')).openPopup();
+    tempMarker.bindPopup(t('dragHint')).openPopup();
   }
   
   const groupSelect = document.getElementById('rec-group-select');
