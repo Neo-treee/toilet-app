@@ -12,8 +12,8 @@ const app = firebase.initializeApp(firebaseConfig);
 
 // Analyticsの初期化（ブラウザ等の対応環境のみ実行）
 let analytics;
-firebase.isSupported().then((supported) => {
+firebase.analytics.isSupported().then((supported) => {
   if (supported) {
-    analytics = getAnalytics(app);
+    analytics = firebase.analytics();
   }
 });
