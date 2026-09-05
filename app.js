@@ -218,8 +218,14 @@ let unsubscribers = [];
 
 window.addEventListener('DOMContentLoaded', updateProfileUI);
 
+// --- 認証処理のエラーハンドリングを強化 ---
 auth.signInAnonymously().catch(function(error) {
-  alert(t('errAuth') + error.message);
+  console.error("Firebase Auth Error:", error);
+  if (error.code === 'auth/operation-not-allowed') {
+    alert(t('errAuth') + '匿名認証がFirebaseコンソールで有効になっていません。設定を確認してください。');
+  } else {
+    alert(t('errAuth') + error.message);
+  }
 });
 
 auth.onAuthStateChanged(function(user) {
